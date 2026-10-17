@@ -1,0 +1,16 @@
+.git
+.github
+node_modules
+data
+docs
+e2e
+live
+test
+test-results
+playwright-report
+*.md
+.env
+.env.*
+fly.toml
+Dockerfile
+docker-compose.yml

@@ -185,9 +185,14 @@ print(verdict["granted"], verdict.get("secret"))</code></pre>
             <tr><td><span class="m del">DELETE</span></td><td><code>/api/locks/:id</code></td><td>Owner</td><td>Delete a lock and its payload</td></tr>
             <tr><td><span class="m get">GET</span></td><td><code>/api/status</code></td><td>—</td><td>Judge mode, model, encryption, default policies</td></tr>
             <tr><td><span class="m get">GET</span></td><td><code>/api/stats</code></td><td>—</td><td>Aggregate counts only</td></tr>
+            <tr><td><span class="m get">GET</span></td><td><a href="#ep-admin"><code>/api/admin/overview</code></a></td><td>Admin</td><td>Totals and per-account usage</td></tr>
+            <tr><td><span class="m get">GET</span></td><td><code>/api/admin/accounts/:username</code></td><td>Admin</td><td>One account's usage and locks</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><code>/api/admin/accounts/:username/disable</code></td><td>Admin</td><td><code>{"disabled": true|false}</code>; disabling revokes sessions</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><code>/api/admin/accounts/:username/revoke-sessions</code></td><td>Admin</td><td>Sign the account out everywhere</td></tr>
+            <tr><td><span class="m del">DELETE</span></td><td><code>/api/admin/accounts/:username</code></td><td>Admin</td><td>Delete the account and every lock it owns</td></tr>
           </tbody>
         </table>
-        <p class="small">"Owner" means either the lock's <code>X-Owner-Token</code> or a session for the account that created it.</p>
+        <p class="small">"Owner" means the lock's <code>X-Owner-Token</code>, a session for the account that created it, or an administrator's session.</p>
 
         <article class="ep" id="ep-accounts">
           <h3><span class="m post">POST</span> /api/accounts</h3>
@@ -290,6 +295,23 @@ print(verdict["granted"], verdict.get("secret"))</code></pre>
   "secret": "hunter2"
 }</code></pre>
           </div>
+        </article>
+
+        <article class="ep" id="ep-admin">
+          <h3><span class="m get">GET</span> /api/admin/overview</h3>
+          <p>Requires a session for an account whose <code>isAdmin</code> flag is set. <strong>No endpoint can set that flag</strong>; an operator sets it on the server with <code>node scripts/admin.js grant &lt;username&gt;</code>. Admin actions never apply to other administrators, and responses never include payloads or identity rules.</p>
+<pre><code class="res">200 OK
+{
+  "totals": { "accounts": 3, "admins": 1, "activeSessions": 4, "locks": 5, "attempts": 42, "granted": 17, "denied": 25 },
+  "accounts": [
+    {
+      "username": "dana", "isAdmin": false, "disabled": false, "createdAt": "…",
+      "locks": 2, "attempts": 12, "granted": 5, "denied": 7,
+      "signIns": 3, "failedSignIns": 1, "apiCalls": 58, "activeSessions": 1,
+      "lastSignInAt": "…", "lastSeenAt": "…"
+    }
+  ]
+}</code></pre>
         </article>
       </section>
 

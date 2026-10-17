@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Mellon Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="admin-page">
+  <div class="banner" role="note"><span>SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/" aria-label="Mellon home">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M6 29V14a10 10 0 0 1 20 0v15" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M11 29V15a5 5 0 0 1 10 0v14" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M16 5v3" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <span class="wordmark">MELLON</span>
+      </a>
+      <div class="nav-links">
+        <a href="/#console">Console</a>
+        <a href="/api.html">API</a>
+        <a href="/admin" aria-current="page">Admin</a>
+        <a href="/#identity" id="nav-account" class="nav-account">Sign in</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="docs-hero admin-hero">
+    <div class="wrap">
+      <p class="eyebrow">Mellon / Command authority</p>
+      <h1>Administration</h1>
+      <p class="lede">Every account, its locks and its usage. Administrator rights are granted only with <code>scripts/admin.js</code> on the server; no API call can grant them, and administrators cannot act on each other here.</p>
+    </div>
+  </header>
+
+  <main class="wrap admin">
+    <section id="gate" class="panel hidden" aria-live="polite"></section>
+
+    <section id="admin-app" class="hidden">
+      <div class="tiles" id="tiles"></div>
+
+      <div class="admin-grid">
+        <section class="panel">
+          <header class="panel-head">
+            <h2><span class="idx">01</span>Accounts</h2>
+            <input id="filter" class="filter" placeholder="Filter by username" spellcheck="false" aria-label="Filter accounts">
+          </header>
+          <div class="table-wrap">
+            <table class="ref accounts" id="accounts">
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th>Status</th>
+                  <th class="num">Locks</th>
+                  <th>Attempts on their locks</th>
+                  <th class="num">Sign-ins ok / failed</th>
+                  <th class="num">API calls</th>
+                  <th class="num">Sessions</th>
+                  <th>Last seen</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="legend admin-legend"><i class="key grant"></i>Granted <i class="key deny sq"></i>Denied</p>
+        </section>
+
+        <section class="panel hidden" id="detail">
+          <header class="panel-head">
+            <h2><span class="idx">02</span><span id="detail-name"></span></h2>
+            <span id="detail-status" class="whoami"></span>
+          </header>
+          <dl class="facts" id="detail-facts"></dl>
+          <div class="row" id="detail-actions">
+            <button type="button" id="act-disable" class="ghost">Disable account</button>
+            <button type="button" id="act-revoke" class="ghost">Revoke sessions</button>
+            <button type="button" id="act-delete" class="danger">Delete account and locks</button>
+          </div>
+          <p id="detail-note" class="hint hidden"></p>
+          <p class="eyebrow detail-locks-title">Locks</p>
+          <ul class="lock-list" id="detail-locks"></ul>
+          <div id="detail-log"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span>Mellon Systems is fictional. Mellon is not encryption.</span>
+      <span class="mono">Speak, friend, and enter.</span>
+    </div>
+  </footer>
+  <div class="banner" role="note"><span>SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+  <div id="toast" class="toast hidden" role="alert"></div>
+
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>

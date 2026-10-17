@@ -1,25 +1,49 @@
 // JSON-file store for locks, accounts and sessions. Secrets and account identity
 // rules are encrypted at rest with AES-256-GCM when MELLON_SECRET_KEY is set;
 // owner tokens and session tokens are stored only as SHA-256 hashes.
+//
+// The file is the database: one process owns it, writes are atomic (write a temp
+// file, then rename), and edits made by another process (scripts/admin.js) are
+// picked up on the next call because the file's mtime changes.
 import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const MAX_ATTEMPTS_KEPT = 50;
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const sha256 = (s) => createHash('sha256').update(s).digest();
 const sha256hex = (s) => sha256(s).toString('hex');
+const USAGE_SAVE_DELAY_MS = 2000;
+const freshUsage = () => ({ apiCalls: 0, signIns: 0, failedSignIns: 0, lastSignInAt: null, lastSeenAt: null });
 
 export function createStore(file, { secretKey = process.env.MELLON_SECRET_KEY, now = () => Date.now() } = {}) {
   const key = secretKey ? sha256(secretKey) : null;
-  const db = load(file);
+  let db = load(file);
+  let seenMtime = mtimeOf(file);
+  let usageTimer = null;
 
   const save = () => {
+    clearTimeout(usageTimer);
+    usageTimer = null;
     for (const [hash, s] of Object.entries(db.sessions)) if (s.expiresAt <= now()) delete db.sessions[hash];
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(`${file}.tmp`, JSON.stringify(db, null, 2), { mode: 0o600 });
     renameSync(`${file}.tmp`, file);
+    seenMtime = mtimeOf(file);
   };
+
+  // Reload if another process (the admin CLI) changed the file. Usage counters
+  // not yet flushed are dropped in that case; they are advisory.
+  const refresh = () => {
+    const m = mtimeOf(file);
+    if (m !== seenMtime) {
+      db = load(file);
+      seenMtime = m;
+    }
+  };
+
+  const usageOf = (account) => (account.usage ??= freshUsage());
+  const isActive = (account) => Boolean(account) && !account.disabled;
 
   const seal = (plain) => {
     if (!key) return { plain };
@@ -43,7 +67,7 @@ export function createStore(file, { secretKey = process.env.MELLON_SECRET_KEY, n
     owner: (ownerAccountId && db.accounts[ownerAccountId]?.username) || null,
   });
 
-  return {
+  const api = {
     encrypted: Boolean(key),
 
     /* Locks */
@@ -90,6 +114,7 @@ export function createStore(file, { secretKey = process.env.MELLON_SECRET_KEY, n
     canManage(id, { ownerToken, accountId } = {}) {
       const lock = db.locks[id];
       if (!lock) return false;
+      if (accountId && db.accounts[accountId]?.isAdmin) return true;
       return Boolean(accountId && lock.ownerAccountId === accountId) || this.isOwner(id, ownerToken);
     },
 
@@ -110,7 +135,8 @@ export function createStore(file, { secretKey = process.env.MELLON_SECRET_KEY, n
     createAccount({ username, rules, policy }) {
       if (Object.values(db.accounts).some((a) => a.username === username)) return null;
       const id = randomBytes(6).toString('hex');
-      db.accounts[id] = { id, username, rules: seal(rules), policy, createdAt: new Date(now()).toISOString() };
+      // isAdmin is deliberately not settable here; see setAdmin.
+      db.accounts[id] = { id, username, rules: seal(rules), policy, createdAt: new Date(now()).toISOString(), isAdmin: false, disabled: false, usage: freshUsage() };
       save();
       return { id, username, createdAt: db.accounts[id].createdAt };
     },
@@ -133,14 +159,111 @@ export function createStore(file, { secretKey = process.env.MELLON_SECRET_KEY, n
       if (typeof token !== 'string' || !token) return null;
       const s = db.sessions[sha256hex(token)];
       if (!s || s.expiresAt <= now()) return null;
-      return db.accounts[s.accountId] ?? null;
+      const account = db.accounts[s.accountId];
+      return isActive(account) ? account : null;
     },
 
     revokeSession(token) {
       delete db.sessions[sha256hex(token)];
       save();
     },
+
+    /* Usage and administration. Note: nothing here is reachable from an API
+       endpoint that can set isAdmin; only setAdmin does, and only the CLI calls it. */
+
+    // Called on every authenticated request; saved lazily.
+    touch(accountId) {
+      const account = db.accounts[accountId];
+      if (!account) return;
+      const usage = usageOf(account);
+      usage.apiCalls += 1;
+      usage.lastSeenAt = new Date(now()).toISOString();
+      usageTimer ??= setTimeout(save, USAGE_SAVE_DELAY_MS);
+      usageTimer.unref?.();
+    },
+
+    recordSignIn(accountId, ok) {
+      const usage = usageOf(db.accounts[accountId]);
+      if (ok) {
+        usage.signIns += 1;
+        usage.lastSignInAt = usage.lastSeenAt = new Date(now()).toISOString();
+      } else {
+        usage.failedSignIns += 1;
+      }
+      save();
+    },
+
+    setAdmin(username, isAdmin) {
+      const account = api.accountByName(username);
+      if (!account) return false;
+      account.isAdmin = Boolean(isAdmin);
+      save();
+      return true;
+    },
+
+    setDisabled(accountId, disabled) {
+      db.accounts[accountId].disabled = Boolean(disabled);
+      if (disabled) api.revokeSessionsFor(accountId);
+      save();
+    },
+
+    revokeSessionsFor(accountId) {
+      let n = 0;
+      for (const [hash, s] of Object.entries(db.sessions)) if (s.accountId === accountId) { delete db.sessions[hash]; n++; }
+      save();
+      return n;
+    },
+
+    // Removes the account, its sessions and every lock it owns.
+    deleteAccount(accountId) {
+      const locks = Object.values(db.locks).filter((l) => l.ownerAccountId === accountId);
+      for (const l of locks) delete db.locks[l.id];
+      for (const [hash, s] of Object.entries(db.sessions)) if (s.accountId === accountId) delete db.sessions[hash];
+      delete db.accounts[accountId];
+      save();
+      return { locksDeleted: locks.length };
+    },
+
+    accountsOverview() {
+      const t = now();
+      return Object.values(db.accounts).map((account) => {
+        const locks = Object.values(db.locks).filter((l) => l.ownerAccountId === account.id);
+        const attempts = locks.flatMap((l) => l.attempts);
+        const granted = attempts.filter((a) => a.granted).length;
+        return {
+          username: account.username,
+          createdAt: account.createdAt,
+          isAdmin: Boolean(account.isAdmin),
+          disabled: Boolean(account.disabled),
+          locks: locks.length,
+          attempts: attempts.length,
+          granted,
+          denied: attempts.length - granted,
+          activeSessions: Object.values(db.sessions).filter((s) => s.accountId === account.id && s.expiresAt > t).length,
+          ...freshUsage(),
+          ...account.usage,
+        };
+      }).sort((a, b) => a.username.localeCompare(b.username));
+    },
+
+    flush() {
+      if (usageTimer) save();
+    },
   };
+
+  // Every call first picks up external edits to the file.
+  for (const [name, fn] of Object.entries(api)) {
+    if (typeof fn === 'function') api[name] = (...args) => { refresh(); return fn.apply(api, args); };
+  }
+  return api;
+}
+
+function mtimeOf(file) {
+  try {
+    return statSync(file).mtimeMs;
+  } catch {
+    return null;
+  }
 }
 
 function load(file) {

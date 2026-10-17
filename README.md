@@ -123,6 +123,10 @@ Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A q
 
 ![API documentation](docs/screenshots/api-docs.png)
 
+**Command authority.** The admin console, showing per-account usage and one account's details.
+
+![Admin console](docs/screenshots/admin.png)
+
 ![Try it console](docs/screenshots/api-try.png)
 
 <table>
@@ -164,8 +168,10 @@ Every capability below ships today.
 | **Zero-Dependency Runtime** | No runtime npm packages and no supply chain to attack. Playwright is used for testing only, and we try not to think about it. |
 | **Classification Workflow Demonstrator** | A built-in fictional `SENSITIVE // PROGRAM NIGHTJAR` document with five sample requests, from a cleared program analyst to an outright injection attempt. The program, clearance levels and markings are invented. |
 | **Mellon Identity** | Accounts are Mellons too. You register plain-English identity rules instead of a password, and every sign-in is adjudicated by Jev under stricter thresholds. Locks you create while signed in are linked to your account. |
+| **Command Authority Console** | `/admin` shows every account's usage (locks, attempts, sign-ins, API calls, sessions, last seen) and can disable accounts, revoke sessions, read any lock's log, and delete accounts or locks. The admin flag lives only in the database and is set from the server's command line, never through the API. |
+| **Deploy Anywhere** | A small Docker image that runs unprivileged, a docker-compose file, and Fly.io scripts and config, with CI that smoke-tests the image. |
 | **Developer API** | A documented JSON API at `/api.html`, with a quickstart in curl, JavaScript and Python, integration recipes and a live Try-it console. |
-| **Continuous Assurance Pipeline** | 49 unit and API tests, 9 browser tests (including a reduced-motion check), and a weekly live check against the real model in GitHub Actions. |
+| **Continuous Assurance Pipeline** | 57 unit and API tests, 10 browser tests (including a reduced-motion check), a Docker smoke test, and a weekly live check against the real model in GitHub Actions. |
 
 ## Roadmap
 
@@ -266,6 +272,66 @@ Open `/api.html` (also `/api` or `/docs`) on a running server for the full refer
 | `GET` / `DELETE` | `/api/locks/:id/attempts`, `/api/locks/:id` | owner token or owning account |
 | `GET` | `/api/status`, `/api/stats` | — |
 
+### Administration
+
+Admins are ordinary accounts with an `isAdmin` flag set in the database. **No API endpoint can set or clear that flag.** Sign-up ignores it, and the admin endpoints only read it. An operator sets it with the CLI on the server:
+
+```sh
+node scripts/admin.js list
+node scripts/admin.js grant dana     # or: docker compose exec mellon node scripts/admin.js grant dana
+node scripts/admin.js revoke dana    # or: scripts/fly-admin.sh <app> grant dana
+```
+
+A running server picks up the change on its next request. Admins sign in like everyone else and open **/admin**, where they can:
+
+- see totals and per-account usage: locks, attempts on their locks (granted/denied), sign-ins (granted/failed), API calls, active sessions and last seen;
+- open an account to see its locks and read any lock's attempt log;
+- disable or re-enable an account (disabling ends its sessions and blocks sign-in), revoke its sessions, or delete it along with every lock it owns.
+
+Admin actions never apply to other administrators, including the admin themselves; those accounts are managed with the CLI. Admin views never show payloads or identity rules.
+
+### Data storage
+
+There is no database server. Everything (locks, accounts, sessions and usage) lives in **one JSON file**, `MELLON_DATA` (default `data/locks.json`, or `/data/mellon.json` in Docker and on Fly).
+
+- The server keeps the data in memory and rewrites the file atomically (write a temporary file, then rename) on every change. Usage counters are batched and saved every couple of seconds, and on shutdown.
+- Payloads and identity rules are encrypted with AES-256-GCM when `MELLON_SECRET_KEY` is set. Owner and session tokens are stored only as SHA-256 hashes. The file is created with mode `0600`.
+- If another process changes the file (the admin CLI), the server notices the new modification time and reloads.
+- Version 1 files, which held only locks, are upgraded automatically.
+
+That makes it simple and dependency-free, but it means **one server process per data file**. You can't run several replicas against it. Back up the file and your `MELLON_SECRET_KEY` together; one is useless without the other. To scale beyond one instance, `src/store.js` is the only module to replace, for example with SQLite or Postgres.
+
+### Deployment
+
+**Docker**
+
+```sh
+cp .env.example .env                 # set MELLON_SECRET_KEY (openssl rand -base64 32), optionally TYPESAFE_API_KEY
+docker compose up -d --build         # http://localhost:3000
+docker compose exec mellon node scripts/admin.js grant <username>
+```
+
+Or without compose:
+
+```sh
+docker build -t mellon .
+docker run -d -p 3000:8080 -v mellon-data:/data -e MELLON_SECRET_KEY=... -e TYPESAFE_API_KEY=... mellon
+```
+
+The image is `node:22-alpine` with no extra packages. It starts as root only long enough to give the mounted volume to the `node` user, then drops privileges. It also has a health check and shuts down cleanly on `SIGTERM`. `scripts/docker-smoke.sh` builds the image and checks all of that end to end. CI runs it on every push.
+
+**Fly.io**
+
+```sh
+fly auth login
+TYPESAFE_API_KEY=... scripts/fly-deploy.sh my-mellon iad
+scripts/fly-admin.sh my-mellon grant <username>
+```
+
+`fly-deploy.sh` is safe to re-run. On the first run it creates the app, a 1 GB `mellon_data` volume and a random `MELLON_SECRET_KEY`. It prints the key once, so save it. Then it deploys a single machine using `fly.toml`. The machine stops when idle and starts on the next request. Because storage is a single file, keep it at **one machine**.
+
+To deploy automatically from GitHub, set a `FLY_API_TOKEN` secret (`fly tokens create deploy`) and a `FLY_APP` variable. `.github/workflows/fly-deploy.yml` then deploys `main` whenever CI passes, or when you run it manually.
+
 ### Security properties
 
 - **The secret is never sent to Jev.** The model has no access to it, so no prompt can make it leak the secret. The server releases the secret itself, and only after a grant.
@@ -306,7 +372,8 @@ GitHub Actions has two workflows:
 | `JEV_URL`           | `https://api.typesafe.ai/v1/systemone`    |
 | `MELLON_SECRET_KEY` | unset → secrets stored in plaintext       |
 | `MELLON_DATA`       | `data/locks.json`                         |
-| `PORT`              | `3000`                                    |
+| `PORT`              | `3000` (`8080` in Docker/Fly)             |
+| `MELLON_RUN_AS_UID` / `MELLON_RUN_AS_GID` | set by the Docker image: drop root to this user after fixing volume ownership; unset elsewhere |
 
 ## License
 
