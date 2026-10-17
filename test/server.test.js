@@ -148,6 +148,12 @@ test('serves the site and blocks path traversal', async () => {
     assert.match(index.headers.get('content-type'), /text\/html/);
     assert.match(index.text, /<title>Mellon<\/title>/);
     assert.match((await call('/app.js')).headers.get('content-type'), /javascript/);
+    for (const name of ['flow', 'architecture', 'quantum']) {
+      const svg = await call(`/diagrams/${name}.svg`);
+      assert.equal(svg.status, 200, name);
+      assert.match(svg.headers.get('content-type'), /image\/svg\+xml/);
+      assert.match(svg.text, /<title id="title">/, `${name} needs an accessible title`);
+    }
     assert.equal((await call('/nope.html')).status, 404);
     assert.equal((await call('/api/nope')).status, 404);
     for (const path of ['/../server.js', '/%2e%2e/server.js', '/..%2fserver.js', '/%2e%2e%2fdata/locks.json']) {

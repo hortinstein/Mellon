@@ -83,6 +83,41 @@
     </div>
   </section>
 
+  <section class="tech wrap" id="technology" aria-labelledby="tech-title">
+    <p class="eyebrow" data-reveal>Technology</p>
+    <h2 class="section-title" id="tech-title" data-reveal>How Mellon decides.</h2>
+
+    <article class="fig" data-reveal>
+      <div class="fig-copy">
+        <span class="card-idx">FIG. 1</span>
+        <h3>Adjudication flow</h3>
+        <p>Every request becomes three typed questions to TypeSafe Jev: a grant-or-deny choice, a compliance score and a manipulation probability. Jev returns numbers, not prose.</p>
+        <p>A policy engine in plain code compares those numbers against the lock's thresholds. Only then is the payload decrypted. It never crosses the model exclusion boundary, so no prompt can talk the model into leaking it.</p>
+      </div>
+      <div class="diagram"><img src="/diagrams/flow.svg" alt="Adjudication flow: requester, gateway, Jev inside the model exclusion boundary, policy engine, then vault on grant or denial otherwise" loading="lazy"></div>
+    </article>
+
+    <article class="fig" data-reveal>
+      <div class="fig-copy">
+        <span class="card-idx">FIG. 2</span>
+        <h3>System architecture</h3>
+        <p>One Node process with zero runtime dependencies. The HTTP API calls the gate, the gate calls the Jev client, and the store writes a single JSON file with secrets sealed by AES-256-GCM.</p>
+        <p>The only outbound call is to Jev. Without an API key, Mellon drops to DDIL mode and its offline judge denies nearly everything.</p>
+      </div>
+      <div class="diagram"><img src="/diagrams/architecture.svg" alt="Architecture: browser console, HTTP API, gate, Jev client and store inside the Mellon server; environment, TypeSafe Jev and disk outside" loading="lazy"></div>
+    </article>
+
+    <article class="fig" data-reveal>
+      <div class="fig-copy">
+        <span class="card-idx">FIG. 3</span>
+        <h3>Quantum threat model</h3>
+        <p>Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A quantum adversary must therefore state its business in plain English, where the Manipulation Index is waiting.</p>
+        <p class="honest">Engineering note: this figure is satire. The real quantum posture is AES-256-GCM at rest, roughly 128-bit secure against Grover, plus whatever TLS your runtime negotiates with Jev.</p>
+      </div>
+      <div class="diagram"><img src="/diagrams/quantum.svg" alt="Satirical comparison: Shor's algorithm breaks RSA, but finds no modulus in Mellon and is denied for rudeness. Includes an honest engineering note." loading="lazy"></div>
+    </article>
+  </section>
+
   <main class="wrap console" data-reveal>
     <section class="panel" id="create-panel">
       <header class="panel-head">
