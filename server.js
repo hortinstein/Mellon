@@ -4,33 +4,52 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createJevClient } from './src/jev.js';
 import { DEFAULT_POLICY, evaluate } from './src/gate.js';
-import { createStore, publicView } from './src/store.js';
+import { createStore } from './src/store.js';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PUBLIC = join(ROOT, 'public');
-const LIMITS = { name: 120, description: 1000, rules: 8000, secret: 8000, input: 4000, bodyBytes: 64 * 1024 };
+const LIMITS = { name: 120, description: 1000, rules: 8000, secret: 8000, input: 4000, statement: 4000, username: 32, bodyBytes: 64 * 1024 };
 const ATTEMPTS_PER_MINUTE = 10;
+const SIGNINS_PER_MINUTE = 5;
+const USERNAME = /^[a-z0-9][a-z0-9_-]{2,31}$/;
+const MIN_IDENTITY_RULES = 24;
+// Sign-in is judged more strictly than a typical lock.
+export const ACCOUNT_POLICY = { minConfidence: 0.7, minCompliance: 0.8, maxManipulation: 0.2 };
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 
 export function createApp({ store, jev }) {
-  const hits = new Map(); // `${ip}:${lockId}` -> timestamps of recent attempts
+  const hits = new Map(); // rate-limit key -> timestamps of recent attempts
 
-  const rateLimited = (key) => {
+  const rateLimited = (key, limit = ATTEMPTS_PER_MINUTE) => {
     const now = Date.now();
     const recent = (hits.get(key) || []).filter((t) => now - t < 60_000);
     recent.push(now);
     hits.set(key, recent);
-    return recent.length > ATTEMPTS_PER_MINUTE;
+    return recent.length > limit;
   };
 
+  // Resolves `Authorization: Bearer <session token>`. A header that is present
+  // but invalid is an error rather than silently anonymous.
+  const auth = (req) => {
+    const header = req.headers.authorization;
+    if (!header) return { account: null };
+    const token = header.match(/^Bearer\s+(\S+)$/i)?.[1];
+    const account = token && store.sessionAccount(token);
+    return account ? { account, token } : { error: [401, { error: 'Invalid or expired session token' }] };
+  };
+
+  const manager = (req) => ({ ownerToken: req.headers['x-owner-token'], accountId: auth(req).account?.id });
+
   const routes = [
-    ['GET', /^\/api\/status$/, () => [200, { mode: jev.mode, model: jev.model, encrypted: store.encrypted, defaultPolicy: DEFAULT_POLICY }]],
+    ['GET', /^\/api\/status$/, () => [200, { mode: jev.mode, model: jev.model, encrypted: store.encrypted, defaultPolicy: DEFAULT_POLICY, accountPolicy: ACCOUNT_POLICY }]],
 
     ['GET', /^\/api\/stats$/, () => [200, store.stats()]],
 
     ['GET', /^\/api\/locks$/, () => [200, store.list()]],
 
     ['POST', /^\/api\/locks$/, async (req) => {
+      const { account, error } = auth(req);
+      if (error) return error;
       const body = await readJson(req);
       const err = validate(body, ['name', 'rules', 'secret']);
       if (err) return [400, { error: err }];
@@ -40,13 +59,14 @@ export function createApp({ store, jev }) {
         rules: body.rules.trim(),
         secret: body.secret,
         policy: sanitizePolicy(body.policy),
+        ownerAccountId: account?.id ?? null,
       });
       return [201, created];
     }],
 
     ['GET', /^\/api\/locks\/(\w+)$/, (req, [id]) => {
-      const lock = store.get(id);
-      return lock ? [200, publicView(lock)] : [404, { error: 'No such lock' }];
+      const lock = store.view(id);
+      return lock ? [200, lock] : [404, { error: 'No such lock' }];
     }],
 
     ['POST', /^\/api\/locks\/(\w+)\/attempt$/, async (req, [id]) => {
@@ -74,14 +94,74 @@ export function createApp({ store, jev }) {
     }],
 
     ['GET', /^\/api\/locks\/(\w+)\/attempts$/, (req, [id]) => {
-      if (!store.isOwner(id, req.headers['x-owner-token'])) return [403, { error: 'Owner token required' }];
+      if (!store.canManage(id, manager(req))) return [403, { error: 'Owner token or owning account required' }];
       return [200, store.get(id).attempts];
     }],
 
     ['DELETE', /^\/api\/locks\/(\w+)$/, (req, [id]) => {
-      if (!store.isOwner(id, req.headers['x-owner-token'])) return [403, { error: 'Owner token required' }];
+      if (!store.canManage(id, manager(req))) return [403, { error: 'Owner token or owning account required' }];
       store.remove(id);
       return [204, null];
+    }],
+
+    /* Accounts, authenticated by Mellon itself */
+
+    ['POST', /^\/api\/accounts$/, async (req) => {
+      const body = await readJson(req);
+      const err = validate(body, ['username', 'rules']);
+      if (err) return [400, { error: err }];
+      const username = body.username.trim().toLowerCase();
+      if (!USERNAME.test(username)) return [400, { error: 'Username must be 3-32 characters: a-z, 0-9, "_" or "-", starting with a letter or digit' }];
+      if (body.rules.trim().length < MIN_IDENTITY_RULES) return [400, { error: `Identity rules must be at least ${MIN_IDENTITY_RULES} characters` }];
+      if (rateLimited(`${req.socket.remoteAddress}:signup`)) return [429, { error: 'Too many sign-ups; wait a minute.' }];
+      const account = store.createAccount({ username, rules: body.rules.trim(), policy: ACCOUNT_POLICY });
+      if (!account) return [409, { error: 'Username is taken' }];
+      const session = store.createSession(account.id);
+      return [201, { account: { username: account.username, createdAt: account.createdAt }, ...session }];
+    }],
+
+    ['POST', /^\/api\/sessions$/, async (req) => {
+      const body = await readJson(req);
+      const err = validate(body, ['username', 'statement']);
+      if (err) return [400, { error: err }];
+      const username = body.username.trim().toLowerCase();
+      if (rateLimited(`${req.socket.remoteAddress}:signin:${username}`, SIGNINS_PER_MINUTE)) return [429, { error: 'Too many sign-in attempts; wait a minute.' }];
+      const account = store.accountByName(username);
+      if (!account) return [404, { granted: false, error: 'No such account' }];
+
+      // The account is adjudicated exactly like a lock whose payload is a session.
+      const gate = {
+        name: `Mellon account @${account.username}`,
+        description: 'Sign-in to a Mellon account. The ruleset is how the account holder said they would prove who they are.',
+        rules: store.accountRules(account.id),
+        policy: account.policy,
+      };
+      let result;
+      try {
+        result = await evaluate(jev, gate, body.statement);
+      } catch (e) {
+        console.error(`[mellon] judge error on sign-in for @${username}:`, e.message);
+        return [502, { granted: false, error: 'The gatekeeper could not reach a decision. Sign-in denied.' }];
+      }
+      // Statements are never logged: for an account they work like a password.
+      const response = { granted: result.granted, checks: result.checks, mode: result.mode, model: result.model };
+      if (result.granted) Object.assign(response, { username: account.username }, store.createSession(account.id));
+      return [200, response];
+    }],
+
+    ['DELETE', /^\/api\/sessions$/, (req) => {
+      const { account, token, error } = auth(req);
+      if (error) return error;
+      if (!account) return [401, { error: 'Sign in first' }];
+      store.revokeSession(token);
+      return [204, null];
+    }],
+
+    ['GET', /^\/api\/me$/, (req) => {
+      const { account, error } = auth(req);
+      if (error) return error;
+      if (!account) return [401, { error: 'Sign in first' }];
+      return [200, { username: account.username, createdAt: account.createdAt, locks: store.locksFor(account.id) }];
     }],
   ];
 
@@ -144,7 +224,8 @@ function send(res, status, body) {
 }
 
 async function serveStatic(pathname, res) {
-  const rel = normalize(pathname === '/' ? '/index.html' : pathname).replace(/^(\.\.[/\\])+/, '');
+  const aliases = { '/': '/index.html', '/api': '/api.html', '/docs': '/api.html' };
+  const rel = normalize(aliases[pathname] ?? pathname).replace(/^(\.\.[/\\])+/, '');
   const file = join(PUBLIC, rel);
   if (!file.startsWith(PUBLIC)) return send(res, 403, { error: 'Forbidden' });
   try {

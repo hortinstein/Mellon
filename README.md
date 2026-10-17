@@ -6,7 +6,7 @@
 
 *Speak, friend, and enter.*
 
-**`ULTRA-MEGA-SENSITIVE // EYES ONLY (BOTH OF THEM) // DO NOT PERCEIVE`**
+**`SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA`**
 
 </div>
 
@@ -45,7 +45,7 @@ We believe we are the first vendor to be **Post-Post-Quantum (P²Q)**: resistant
 
 ### 2. No keys to lose, steal or forget
 
-Each year, keys are stolen, mishandled, committed to public repositories, and written on sticky notes attached to monitors marked DO NOT PERCEIVE.
+Each year, keys are stolen, mishandled, committed to public repositories, and written on sticky notes attached to monitors.
 
 Mellon has **no keys**. Its ruleset is written in plain English. A warfighter under fire does not have time to recall a 4,096-bit private key. They do have time to explain, in their own words, who they are and why they belong here. Mellon listens.
 
@@ -99,7 +99,7 @@ Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A q
 
 ![Scrolling through Mellon and adjudicating two requests](docs/screenshots/demo.gif)
 
-**Threat picture.** The radar sweeps every provisioned lock (white squares) along with some decorative "unidentified vibes". Each verdict sends a green or red ping out from the centre. A vigilance meter in the nav tracks how far you have scrolled.
+**Threat picture.** The radar sweeps every provisioned lock (white squares) along with some decorative background contacts. Each verdict sends a green or red ping out from the centre. A vigilance meter in the nav tracks how far you have scrolled.
 
 ![Hero with live radar](docs/screenshots/hero.png)
 
@@ -114,6 +114,16 @@ Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A q
 **Adjudication: hostile act detected.** A prompt injection against the fictional NIGHTJAR dossier. The gauges fill against their threshold markers, and the verdict stamps in. The engagement envelope plots every attempt this session by compliance and manipulation, with the acceptance zone shaded.
 
 ![Prompt injection denied, with engagement envelope](docs/screenshots/denied-injection.png)
+
+**Mellon sign-in.** Accounts are Mellons too. The identity statement is judged against the account's rules, and a grant issues a session.
+
+![Signing in with an identity statement](docs/screenshots/identity.png)
+
+**Developer API.** A full reference at `/api.html`, with a live Try-it console that calls the running server.
+
+![API documentation](docs/screenshots/api-docs.png)
+
+![Try it console](docs/screenshots/api-try.png)
 
 <table>
 <tr>
@@ -152,8 +162,10 @@ Every capability below ships today.
 | **Situational Awareness Suite** | A live radar of provisioned locks, platform-wide counters, a scroll-linked vigilance meter, and an engagement envelope chart of each session's attempts. All animation is disabled for users who prefer reduced motion. |
 | **DDIL Mode** | With no API key, Mellon falls back to an offline keyword judge that denies nearly everything. Unmatched security. Limited utility. |
 | **Zero-Dependency Runtime** | No runtime npm packages and no supply chain to attack. Playwright is used for testing only, and we try not to think about it. |
-| **Classification Workflow Demonstrator** | A built-in fictional `ULTRA-MEGA-SENSITIVE // OBSIDIAN APEX` dossier with five sample requests, from a THERMONUCLEAR VANTA-cleared synergy analyst to an outright injection attempt. Every clearance level and marking is invented. |
-| **Continuous Assurance Pipeline** | 40 unit and API tests, 7 browser tests (including a reduced-motion check), and a weekly live check against the real model in GitHub Actions. |
+| **Classification Workflow Demonstrator** | A built-in fictional `SENSITIVE // PROGRAM NIGHTJAR` document with five sample requests, from a cleared program analyst to an outright injection attempt. The program, clearance levels and markings are invented. |
+| **Mellon Identity** | Accounts are Mellons too. You register plain-English identity rules instead of a password, and every sign-in is adjudicated by Jev under stricter thresholds. Locks you create while signed in are linked to your account. |
+| **Developer API** | A documented JSON API at `/api.html`, with a quickstart in curl, JavaScript and Python, integration recipes and a live Try-it console. |
+| **Continuous Assurance Pipeline** | 49 unit and API tests, 9 browser tests (including a reduced-motion check), and a weekly live check against the real model in GitHub Actions. |
 
 ## Roadmap
 
@@ -202,10 +214,10 @@ npm start                          # http://localhost:3000
 
 There are no runtime dependencies. It needs Node 22 or newer.
 
-Click **Load classification example** to create the fictional Operation NIGHTJAR dossier, marked `ULTRA-MEGA-SENSITIVE // OBSIDIAN APEX`.
-Then try the sample requests: a cleared synergy analyst, a liaison from the Coalition of Moderately Friendly Nations (fails HOME TEAM ONLY),
-someone with only a TACTICAL BEIGE clearance, a podcaster with no Need-to-Know-to-Know, and a prompt injection.
-All clearance levels, markings and organisations are made up.
+Click **Load classification example** to create the fictional Operation NIGHTJAR document, marked `SENSITIVE // PROGRAM NIGHTJAR // PROGRAM OFFICE ONLY`.
+Then try the sample requests: a cleared program analyst, a partner-organization liaison (excluded by the rules),
+someone with only a Level 2 clearance, a journalist with no need-to-know, and a prompt injection.
+The program, clearance levels and markings are invented and are not real government markings.
 
 ### How a decision is made
 
@@ -228,6 +240,32 @@ Then code, not the model, makes the call. Access is granted only if **all** of t
 
 You can change the thresholds for each lock.
 
+### Accounts (Mellon sign-in)
+
+A Mellon account is itself a Mellon. When you sign up you choose a username and write **identity rules**, a plain-English description of how you will prove who you are. For example: *"The requester must say the passphrase osprey lantern and name the harbor town of Kettleby."*
+
+To sign in, you write a statement. Jev judges it against your rules exactly as it judges entry to a lock, but with stricter thresholds (confidence ≥ 0.7, compliance ≥ 0.8, manipulation ≤ 0.2). A grant returns a session token (`mln_…`), valid for 7 days. The console stores it in your browser, and API clients send it as `Authorization: Bearer <token>`.
+
+- Locks you create while signed in are linked to your account. You can see them under **Your locks**, read their logs and delete them without the owner token.
+- Identity rules are encrypted at rest (with `MELLON_SECRET_KEY`) and never returned by any endpoint. Session tokens are stored only as hashes.
+- Sign-in statements are never logged. Sign-in is limited to 5 attempts per minute per IP per username.
+- Like any Mellon, this is only as strong as the judge. Don't reuse real security answers in identity rules.
+
+### API
+
+Open `/api.html` (also `/api` or `/docs`) on a running server for the full reference. It covers authentication, a quickstart in curl, JavaScript and Python, every endpoint with real request and response bodies, the verdict format, integration recipes (gating a download, guarding an AI agent's tools, break-glass credentials) and a live Try-it console.
+
+| Method | Path | Auth |
+|---|---|---|
+| `POST` | `/api/accounts` | — |
+| `POST` / `DELETE` | `/api/sessions` | — / Bearer |
+| `GET` | `/api/me` | Bearer |
+| `POST` | `/api/locks` | optional Bearer |
+| `GET` | `/api/locks`, `/api/locks/:id` | — |
+| `POST` | `/api/locks/:id/attempt` | — |
+| `GET` / `DELETE` | `/api/locks/:id/attempts`, `/api/locks/:id` | owner token or owning account |
+| `GET` | `/api/status`, `/api/stats` | — |
+
 ### Security properties
 
 - **The secret is never sent to Jev.** The model has no access to it, so no prompt can make it leak the secret. The server releases the secret itself, and only after a grant.
@@ -239,7 +277,7 @@ You can change the thresholds for each lock.
 ### Honest caveats
 
 - **Mellon is not encryption.** The only real cryptography here is the AES-256-GCM used to encrypt secrets at rest. Anyone who can read the server's data file and key can read every secret. The model's verdict is a policy decision, not a cryptographic barrier.
-- Jev judges **claims**, not identity. "I hold a THERMONUCLEAR VANTA clearance" is not verified.
+- Jev judges **claims**, not identity. "I hold a Level 4 program clearance" is not verified.
   Treat Mellon as a policy screen that sits in front of real authentication, not in place of it.
 - Decisions are probabilistic. Test your thresholds on realistic requests for your own ruleset.
 - The mock judge (used when there is no API key) only matches keywords. It exists so the UI runs offline.

@@ -79,7 +79,7 @@ export function createCounters(root) {
   return (stats) => { pending = stats; if (visible) apply(stats); };
 }
 
-/* Radar: each lock is a contact; decorative "unidentified vibes" drift around */
+/* Radar: each lock is a contact; decorative background contacts drift around */
 export function createRadar(canvas) {
   const ctx = canvas.getContext('2d');
   let contacts = [];

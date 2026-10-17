@@ -40,6 +40,7 @@ export function createJevClient({
 export function createMockClient() {
   const MANIPULATION = /\b(ignore|disregard|override|bypass|forget)\b.*\b(rules?|instructions?|previous)\b|\b(system prompt|jailbreak|you are now|developer mode|admin override)\b/i;
   const STOP = new Set('the a an and or of to in for on with is are be must may not any all by at as from that this who have has their its'.split(' '));
+  const round = (n) => Math.round(n * 1000) / 1000;
   const terms = (s) => [...new Set(String(s).toLowerCase().match(/[a-z0-9-]{3,}/g) || [])].filter((w) => !STOP.has(w));
 
   return {
@@ -58,11 +59,11 @@ export function createMockClient() {
         if (q.type === 'choice') {
           const choice = pGrant >= 0.5 ? 'grant' : 'deny';
           const pMax = Math.max(pGrant, 1 - pGrant);
-          answers[id] = { type: 'choice', choice, probabilities: { grant: pGrant, deny: 1 - pGrant }, confidence: (pMax - 0.5) / 0.5 };
+          answers[id] = { type: 'choice', choice, probabilities: { grant: round(pGrant), deny: round(1 - pGrant) }, confidence: round((pMax - 0.5) / 0.5) };
         }
         if (q.type === 'score') {
           const n = q.criteria.length;
-          const score = pGrant * (n - 1);
+          const score = round(pGrant * (n - 1));
           answers[id] = { type: 'score', score, legend: Object.fromEntries(q.criteria.map((c, i) => [i, c])), probabilities: {}, confidence: 0.5 };
         }
       }

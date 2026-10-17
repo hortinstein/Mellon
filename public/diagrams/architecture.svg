@@ -37,12 +37,14 @@
   <text class="s" x="40" y="160">index.html</text>
   <text class="f" x="40" y="176">layout, banners</text>
   <text class="s" x="40" y="204">app.js</text>
-  <text class="f" x="40" y="220">locks, attempts, owner</text>
+  <text class="f" x="40" y="220">locks, sign-in, owner</text>
   <text class="s" x="40" y="248">fx.js</text>
   <text class="f" x="40" y="264">radar, counters,</text>
   <text class="f" x="40" y="280">envelope chart, scroll</text>
   <text class="s" x="40" y="308">examples.js</text>
   <text class="f" x="40" y="324">NIGHTJAR scenario</text>
+  <text class="s" x="40" y="352">api.html + docs.js</text>
+  <text class="f" x="40" y="368">reference, Try it</text>
   <text class="f" x="40" y="396">no secrets cached</text>
   <text class="f" x="40" y="410">beyond the response</text>
 
@@ -51,9 +53,9 @@
 
   <rect class="box key" x="296" y="92" width="400" height="88"/>
   <text class="t" x="312" y="120">HTTP API</text><text class="f" x="400" y="120">server.js</text>
-  <text class="s" x="312" y="142">POST /api/locks · POST /attempt · GET /stats</text>
-  <text class="s" x="312" y="160">owner-only log + delete · static files</text>
-  <text class="f" x="312" y="174">rate limit 10/min/IP/lock · body ≤ 64 KB · fails closed</text>
+  <text class="s" x="312" y="142">locks · attempts · accounts · sessions · /me</text>
+  <text class="s" x="312" y="160">bearer or owner-token auth · site + /api docs</text>
+  <text class="f" x="312" y="174">rate limits · body ≤ 64 KB · fails closed</text>
 
   <rect class="box" x="296" y="214" width="184" height="92"/>
   <text class="t" x="312" y="242">GATE</text><text class="f" x="360" y="242">src/gate.js</text>
@@ -69,8 +71,8 @@
 
   <rect class="box" x="296" y="336" width="400" height="76"/>
   <text class="t" x="312" y="362">STORE</text><text class="f" x="370" y="362">src/store.js</text>
-  <text class="s" x="312" y="384">secrets: AES-256-GCM · owner tokens: SHA-256</text>
-  <text class="s" x="312" y="400">atomic writes · last 50 attempts per lock</text>
+  <text class="s" x="312" y="384">secrets + identity rules: AES-256-GCM</text>
+  <text class="s" x="312" y="400">owner + session tokens: SHA-256 hashes</text>
 
   <!-- External -->
   <rect class="box ext" x="760" y="92" width="176" height="88"/>

@@ -4,18 +4,28 @@ import { createCounters, createRadar, initScroll, reducedMotion, renderEnvelope,
 const $ = (sel) => document.querySelector(sel);
 let current = null;
 let defaultPolicy = { minConfidence: 0.6, minCompliance: 0.75, maxManipulation: 0.3 };
-const session = new Map(); // lock id -> this session's plotted attempts
+const plotted = new Map(); // lock id -> attempts plotted during this visit
 const radar = createRadar($('#radar'));
 const updateCounters = createCounters($('#stats'));
 const refreshStats = () => api('/api/stats').then(updateCounters).catch(() => {});
 
+// Mellon session (from a granted sign-in), kept per browser.
+let session = null;
+try { session = JSON.parse(localStorage.getItem('mellon:session')); } catch {}
+const saveSession = (s) => { session = s; try { s ? localStorage.setItem('mellon:session', JSON.stringify(s)) : localStorage.removeItem('mellon:session'); } catch {} };
+
 const api = async (path, opts = {}) => {
+  const auth = session?.token ? { Authorization: `Bearer ${session.token}` } : {};
   const res = await fetch(path, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    headers: { 'Content-Type': 'application/json', ...auth, ...(opts.headers || {}) },
     body: opts.body && JSON.stringify(opts.body),
   });
   const data = res.status === 204 ? null : await res.json();
+  if (res.status === 401 && session && /session/i.test(data?.error || '')) {
+    saveSession(null);
+    renderIdentity();
+  }
   if (!res.ok && !(data && 'granted' in data)) throw new Error(data?.error || res.statusText);
   return data;
 };
@@ -54,7 +64,9 @@ async function loadLocks() {
   for (const lock of locks) {
     const btn = el('button', { type: 'button', className: 'lock' + (current?.id === lock.id ? ' active' : '') },
       el('strong', { textContent: lock.name }),
-      el('span', { className: 'muted', textContent: `${lock.attemptCount} attempt${lock.attemptCount === 1 ? '' : 's'}` }));
+      el('span', { className: 'muted' },
+        ...(lock.owner ? [el('span', { className: 'owner', textContent: `@${lock.owner}` })] : []),
+        `${lock.attemptCount} attempt${lock.attemptCount === 1 ? '' : 's'}`));
     btn.onclick = () => openLock(lock);
     list.append(el('li', {}, btn));
   }
@@ -69,6 +81,9 @@ function openLock(lock) {
   $('#result').classList.add('hidden');
   $('#log').replaceChildren();
   $('#owner-token').value = tokens.get(lock.id);
+  const mine = session && lock.owner === session.username;
+  $('#owner-note').classList.toggle('hidden', !mine);
+  $('#owner-note').textContent = mine ? `You own this lock through @${session.username}. No owner token needed.` : '';
   $('#attempt-form').input.value = '';
   $('#sequence').classList.add('hidden');
   drawEnvelope();
@@ -102,8 +117,7 @@ function meter(c) {
   return bar;
 }
 
-function renderResult(r) {
-  const box = $('#result');
+function renderResult(r, box = $('#result')) {
   box.className = `result ${r.granted ? 'granted' : 'denied'}`;
   const meta = [r.mode === 'mock' ? 'Mock judge' : r.model, new Date().toISOString().slice(11, 19) + 'Z'].filter(Boolean).join(' · ');
   box.replaceChildren(el('div', { className: 'verdict' },
@@ -127,11 +141,111 @@ function renderResult(r) {
       el('p', { className: 'eyebrow', textContent: 'Payload released' }),
       el('pre', { className: 'secret', textContent: r.secret })));
   }
+  if (r.token) {
+    box.append(el('div', { className: 'payload' },
+      el('p', { className: 'eyebrow', textContent: 'Session issued' }),
+      el('pre', { className: 'secret', textContent: `@${r.username} · expires ${new Date(r.expiresAt).toUTCString()}` })));
+  }
 }
 
+/* Identity: accounts are themselves Mellons */
+
+async function renderIdentity() {
+  const on = Boolean(session);
+  $('#signed-out').classList.toggle('hidden', on);
+  $('#signed-in').classList.toggle('hidden', !on);
+  $('#whoami').textContent = on ? `@${session.username}` : 'Not signed in';
+  $('#whoami').classList.toggle('on', on);
+  const nav = $('#nav-account');
+  nav.textContent = on ? `@${session.username}` : 'Sign in';
+  nav.classList.toggle('signed-in', on);
+  if (!on) return;
+  $('#me-name').textContent = `@${session.username}`;
+  try {
+    const me = await api('/api/me');
+    const list = $('#my-locks');
+    list.replaceChildren();
+    if (!me.locks.length) list.append(el('li', { className: 'muted', textContent: 'No locks yet. Anything you provision now is linked to you.' }));
+    for (const lock of me.locks) {
+      const btn = el('button', { type: 'button', className: 'lock' },
+        el('strong', { textContent: lock.name }),
+        el('span', { className: 'muted', textContent: `${lock.attemptCount} attempt${lock.attemptCount === 1 ? '' : 's'}` }));
+      btn.onclick = () => openLock(lock);
+      list.append(el('li', {}, btn));
+    }
+  } catch {}
+}
+
+for (const tab of document.querySelectorAll('.tab')) {
+  tab.onclick = () => {
+    for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t === tab));
+    $('#signin-form').classList.toggle('hidden', tab.dataset.tab !== 'signin');
+    $('#signup-form').classList.toggle('hidden', tab.dataset.tab !== 'signup');
+  };
+}
+
+$('#signup-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  try {
+    const r = await api('/api/accounts', { method: 'POST', body: { username: f.username.value, rules: f.rules.value } });
+    saveSession({ token: r.token, username: r.account.username, expiresAt: r.expiresAt });
+    f.reset();
+    notify(`Account @${r.account.username} created. You are signed in.`, 'ok');
+    renderIdentity();
+    loadLocks();
+    refreshStats();
+  } catch (err) {
+    notify(err.message);
+  }
+};
+
+$('#signin-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type=submit]');
+  btn.disabled = true;
+  $('#signin-result').classList.add('hidden');
+  const request = api('/api/sessions', { method: 'POST', body: { username: f.username.value, statement: f.statement.value } });
+  const lines = ['ESTABLISHING UPLINK TO ADJUDICATOR', 'TRANSMITTING IDENTITY STATEMENT', 'IDENTITY RULES NEVER SENT TO CLIENT', 'EVALUATING IDENTITY RULES'];
+  try {
+    const r = await runSequence($('#signin-sequence'), lines, request);
+    renderResult(r, $('#signin-result'));
+    radar.ping(r.granted);
+    if (r.granted) {
+      saveSession({ token: r.token, username: r.username, expiresAt: r.expiresAt });
+      f.reset();
+      setTimeout(() => { $('#signin-result').classList.add('hidden'); renderIdentity(); loadLocks(); }, reducedMotion() ? 0 : 1600);
+    }
+  } catch (err) {
+    renderResult({ granted: false, error: err.message }, $('#signin-result'));
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+$('#signout').onclick = async () => {
+  try { await api('/api/sessions', { method: 'DELETE' }); } catch {}
+  saveSession(null);
+  document.querySelector('.tab[data-tab=signin]').click();
+  renderIdentity();
+  loadLocks();
+  if (current) openLock(current);
+};
+
+$('#copy-token').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(session.token);
+    notify('Session token copied. Send it as "Authorization: Bearer <token>".', 'ok');
+  } catch {
+    notify('Could not access the clipboard.');
+  }
+};
+
 let toastTimer;
-function notify(message) {
+function notify(message, kind = 'error') {
   const toast = $('#toast');
+  toast.className = `toast ${kind === 'ok' ? 'ok' : ''}`;
   toast.textContent = message;
   toast.classList.remove('hidden');
   clearTimeout(toastTimer);
@@ -140,7 +254,7 @@ function notify(message) {
 
 function drawEnvelope() {
   if (!current) return;
-  renderEnvelope($('#envelope'), session.get(current.id) || [], { ...defaultPolicy, ...current.policy });
+  renderEnvelope($('#envelope'), plotted.get(current.id) || [], { ...defaultPolicy, ...current.policy });
 }
 
 function recordPoint(r, input) {
@@ -148,10 +262,10 @@ function recordPoint(r, input) {
   const compliance = value('compliance');
   const manipulation = value('manipulation');
   if (typeof compliance !== 'number' || typeof manipulation !== 'number') return;
-  const points = session.get(current.id) || [];
+  const points = plotted.get(current.id) || [];
   const sample = sampleInputs.find((s) => s.text === input);
   points.push({ n: points.length + 1, compliance, manipulation, granted: r.granted, label: sample ? sample.label : input.slice(0, 48) });
-  session.set(current.id, points);
+  plotted.set(current.id, points);
   drawEnvelope();
 }
 
@@ -175,11 +289,12 @@ $('#create-form').onsubmit = async (e) => {
     const notice = $('#created');
     notice.classList.remove('hidden');
     notice.replaceChildren(
-      el('p', { textContent: `Lock "${lock.name}" created. Owner token (saved in this browser; copy it to manage the lock elsewhere):` }),
+      el('p', { textContent: `Lock "${lock.name}" created${lock.owner ? ` and linked to @${lock.owner}` : ''}. Owner token (saved in this browser; copy it to manage the lock elsewhere):` }),
       el('code', { textContent: ownerToken }),
     );
     openLock(lock);
     refreshStats();
+    renderIdentity();
   } catch (err) {
     notify(err.message);
   }
@@ -252,6 +367,7 @@ tick();
 setInterval(tick, 1000);
 
 initScroll();
+renderIdentity();
 loadStatus();
 loadLocks();
 refreshStats();

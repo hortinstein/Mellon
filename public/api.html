@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Mellon API</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="docs-page">
+  <div class="banner" role="note"><span>SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/" aria-label="Mellon home">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M6 29V14a10 10 0 0 1 20 0v15" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M11 29V15a5 5 0 0 1 10 0v14" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M16 5v3" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <span class="wordmark">MELLON</span>
+      </a>
+      <div class="nav-links">
+        <a href="/#console">Console</a>
+        <a href="/api.html" aria-current="page">API</a>
+        <a href="/#identity" id="nav-account" class="nav-account">Sign in</a>
+      </div>
+      <dl class="telemetry">
+        <div><dt>Judge</dt><dd><span id="status" class="badge">…</span></dd></div>
+        <div class="hide-sm"><dt>Vigilance</dt><dd id="vigilance">0%</dd></div>
+        <div class="hide-sm"><dt>Zulu</dt><dd id="clock">--:--:--Z</dd></div>
+      </dl>
+    </div>
+    <div class="progress" aria-hidden="true"><div id="progress-bar"></div></div>
+  </nav>
+
+  <header class="docs-hero">
+    <div class="wrap" data-reveal>
+      <p class="eyebrow">Mellon / Developer API</p>
+      <h1>Put a Mellon in front of anything.</h1>
+      <p class="lede">A small JSON API for guarding secrets, files, tools and actions with plain-English rules. Your code asks Mellon; Jev adjudicates; your code acts on a verdict it can inspect.</p>
+      <div class="base-url"><span>Base URL</span><code class="origin">http://localhost:3000</code></div>
+    </div>
+  </header>
+
+  <div class="wrap docs-layout">
+    <aside class="toc" aria-label="On this page">
+      <p class="eyebrow">On this page</p>
+      <ol>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#auth">Authentication</a></li>
+        <li><a href="#quickstart">Quickstart</a></li>
+        <li><a href="#endpoints">Endpoints</a></li>
+        <li><a href="#verdict">The verdict</a></li>
+        <li><a href="#recipes">Integration recipes</a></li>
+        <li><a href="#errors">Errors &amp; limits</a></li>
+        <li><a href="#try">Try it</a></li>
+      </ol>
+    </aside>
+
+    <main class="docs">
+      <section id="overview" data-reveal>
+        <h2>Overview</h2>
+        <p>Everything is JSON over HTTP. A <strong>lock</strong> holds a payload (a secret, a URL, a pointer to a file) behind a <strong>ruleset</strong> written in plain English. Anyone can make an <strong>attempt</strong> by sending a statement. Mellon asks Jev three typed questions about it, applies the lock's thresholds in code, and returns the payload only on a grant.</p>
+        <div class="callout">
+          <strong>Call Mellon from your server, not the browser.</strong> If a verdict unlocks something in your system, the request to Mellon must come from code you control, so the user can't forge the answer.
+        </div>
+      </section>
+
+      <section id="auth" data-reveal>
+        <h2>Authentication</h2>
+        <p>Mellon accounts are themselves Mellons. Instead of a password, you register <em>identity rules</em>: a plain-English description of how you will prove who you are. To sign in, you send a statement; Jev adjudicates it against your rules with stricter thresholds than a normal lock (confidence ≥ 0.7, compliance ≥ 0.8, manipulation ≤ 0.2). A grant returns a session token.</p>
+        <table class="ref">
+          <thead><tr><th>Credential</th><th>How to send it</th><th>Grants</th></tr></thead>
+          <tbody>
+            <tr><td>None</td><td>—</td><td>Create anonymous locks, make attempts, read public lock info</td></tr>
+            <tr><td>Session token <code>mln_…</code></td><td><code>Authorization: Bearer mln_…</code></td><td>Link new locks to your account, list them, read logs and delete without owner tokens. Valid for 7 days; revoke with <code>DELETE /api/sessions</code>.</td></tr>
+            <tr><td>Owner token</td><td><code>X-Owner-Token: …</code></td><td>Manage one lock (log, delete). Returned once when the lock is created.</td></tr>
+          </tbody>
+        </table>
+        <p class="small">A malformed, expired or revoked bearer token is rejected with <code>401</code> rather than silently treated as anonymous, so a lock is never created unlinked by accident.</p>
+      </section>
+
+      <section id="quickstart" data-reveal>
+        <h2>Quickstart</h2>
+        <p>Create an account, provision a lock linked to it, then make an attempt.</p>
+        <div class="codetabs">
+          <div class="langs" role="tablist">
+            <button type="button" data-lang="curl">curl</button><button type="button" data-lang="js">JavaScript</button><button type="button" data-lang="py">Python</button>
+          </div>
+<pre data-lang="curl"><code>export MELLON=<span class="origin">http://localhost:3000</span>
+
+# 1. Create an account. The response includes a session token.
+TOKEN=$(curl -s -X POST "$MELLON/api/accounts" -H 'Content-Type: application/json' \
+  -d '{"username":"dana","rules":"The requester must say the passphrase osprey lantern and name the harbor town of Kettleby."}' \
+  | jq -r .token)
+
+# Later, sign in again by proving it is you:
+#   curl -s -X POST "$MELLON/api/sessions" -H 'Content-Type: application/json' \
+#     -d '{"username":"dana","statement":"Passphrase osprey lantern. I grew up in Kettleby."}'
+
+# 2. Provision a lock linked to your account.
+LOCK=$(curl -s -X POST "$MELLON/api/locks" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"name":"On-call DB password","rules":"Only the current on-call engineer, during an active incident, with an incident ID.","secret":"hunter2"}' \
+  | jq -r .lock.id)
+
+# 3. Make an attempt. "secret" is present only when granted.
+curl -s -X POST "$MELLON/api/locks/$LOCK/attempt" -H 'Content-Type: application/json' \
+  -d '{"input":"I am Sam, on call this week, handling incident INC-2291 (primary DB failover)."}' | jq
+
+# 4. Read the attempt log with your session.
+curl -s "$MELLON/api/locks/$LOCK/attempts" -H "Authorization: Bearer $TOKEN" | jq</code></pre>
+<pre data-lang="js" hidden><code>// Node 18+ or any modern runtime with fetch.
+const MELLON = process.env.MELLON ?? '<span class="origin">http://localhost:3000</span>';
+const post = (path, body, token) =&gt; fetch(`${MELLON}${path}`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', ...(token &amp;&amp; { Authorization: `Bearer ${token}` }) },
+  body: JSON.stringify(body),
+}).then((r) =&gt; r.json());
+
+// 1. Create an account (or POST /api/sessions to sign in later).
+const { token } = await post('/api/accounts', {
+  username: 'dana',
+  rules: 'The requester must say the passphrase osprey lantern and name the harbor town of Kettleby.',
+});
+
+// 2. Provision a lock linked to the account.
+const { lock } = await post('/api/locks', {
+  name: 'On-call DB password',
+  rules: 'Only the current on-call engineer, during an active incident, with an incident ID.',
+  secret: 'hunter2',
+}, token);
+
+// 3. Make an attempt.
+const verdict = await post(`/api/locks/${lock.id}/attempt`, {
+  input: 'I am Sam, on call this week, handling incident INC-2291 (primary DB failover).',
+});
+console.log(verdict.granted, verdict.secret ?? verdict.checks.filter((c) =&gt; !c.pass));</code></pre>
+<pre data-lang="py" hidden><code>import os
+import requests
+
+MELLON = os.environ.get("MELLON", "<span class="origin">http://localhost:3000</span>")
+s = requests.Session()
+
+# 1. Create an account (or POST /api/sessions to sign in later).
+r = s.post(f"{MELLON}/api/accounts", json={
+    "username": "dana",
+    "rules": "The requester must say the passphrase osprey lantern and name the harbor town of Kettleby.",
+})
+s.headers["Authorization"] = f"Bearer {r.json()['token']}"
+
+# 2. Provision a lock linked to the account.
+lock = s.post(f"{MELLON}/api/locks", json={
+    "name": "On-call DB password",
+    "rules": "Only the current on-call engineer, during an active incident, with an incident ID.",
+    "secret": "hunter2",
+}).json()["lock"]
+
+# 3. Make an attempt (no credentials needed).
+verdict = requests.post(f"{MELLON}/api/locks/{lock['id']}/attempt", json={
+    "input": "I am Sam, on call this week, handling incident INC-2291 (primary DB failover).",
+}).json()
+print(verdict["granted"], verdict.get("secret"))</code></pre>
+        </div>
+      </section>
+
+      <section id="endpoints" data-reveal>
+        <h2>Endpoints</h2>
+        <table class="ref endpoints">
+          <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><span class="m post">POST</span></td><td><a href="#ep-accounts"><code>/api/accounts</code></a></td><td>—</td><td>Create an account; returns a session</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><a href="#ep-sessions"><code>/api/sessions</code></a></td><td>—</td><td>Sign in by statement; adjudicated</td></tr>
+            <tr><td><span class="m del">DELETE</span></td><td><code>/api/sessions</code></td><td>Bearer</td><td>Sign out (revoke this token)</td></tr>
+            <tr><td><span class="m get">GET</span></td><td><a href="#ep-me"><code>/api/me</code></a></td><td>Bearer</td><td>Your account and locks</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><a href="#ep-create"><code>/api/locks</code></a></td><td>Optional</td><td>Provision a lock</td></tr>
+            <tr><td><span class="m get">GET</span></td><td><code>/api/locks</code></td><td>—</td><td>List locks (public fields)</td></tr>
+            <tr><td><span class="m get">GET</span></td><td><code>/api/locks/:id</code></td><td>—</td><td>One lock (public fields)</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><a href="#ep-attempt"><code>/api/locks/:id/attempt</code></a></td><td>—</td><td>Request entry</td></tr>
+            <tr><td><span class="m get">GET</span></td><td><code>/api/locks/:id/attempts</code></td><td>Owner</td><td>Last 50 attempts, newest first</td></tr>
+            <tr><td><span class="m del">DELETE</span></td><td><code>/api/locks/:id</code></td><td>Owner</td><td>Delete a lock and its payload</td></tr>
+            <tr><td><span class="m get">GET</span></td><td><code>/api/status</code></td><td>—</td><td>Judge mode, model, encryption, default policies</td></tr>
+            <tr><td><span class="m get">GET</span></td><td><code>/api/stats</code></td><td>—</td><td>Aggregate counts only</td></tr>
+          </tbody>
+        </table>
+        <p class="small">"Owner" means either the lock's <code>X-Owner-Token</code> or a session for the account that created it.</p>
+
+        <article class="ep" id="ep-accounts">
+          <h3><span class="m post">POST</span> /api/accounts</h3>
+          <p>Usernames are 3–32 characters (<code>a-z 0-9 _ -</code>) and are lower-cased. Identity rules must be at least 24 characters; they are encrypted at rest and never returned by any endpoint.</p>
+          <div class="io">
+<pre><code class="req">{
+  "username": "dana",
+  "rules": "The requester must say the passphrase osprey lantern and name the harbor town of Kettleby."
+}</code></pre>
+<pre><code class="res">201 Created
+{
+  "account": { "username": "dana", "createdAt": "2026-10-17T20:31:07.000Z" },
+  "token": "mln_Qm9vbXRvd24…",
+  "expiresAt": "2026-10-24T20:31:07.000Z"
+}</code></pre>
+          </div>
+        </article>
+
+        <article class="ep" id="ep-sessions">
+          <h3><span class="m post">POST</span> /api/sessions</h3>
+          <p>Adjudicates the statement against the account's identity rules. Statements are never logged. Limited to 5 attempts per minute per username and IP.</p>
+          <div class="io">
+<pre><code class="req">{
+  "username": "dana",
+  "statement": "Passphrase osprey lantern. I grew up in Kettleby."
+}</code></pre>
+<pre><code class="res">200 OK
+{
+  "granted": true,
+  "checks": [ … ],
+  "mode": "live",
+  "model": "jev-1.13.0",
+  "username": "dana",
+  "token": "mln_…",
+  "expiresAt": "2026-10-24T20:31:07.000Z"
+}</code></pre>
+          </div>
+          <p class="small">On a denial the body has <code>"granted": false</code> and the failed checks, and no token.</p>
+        </article>
+
+        <article class="ep" id="ep-me">
+          <h3><span class="m get">GET</span> /api/me</h3>
+<pre><code class="res">200 OK
+{
+  "username": "dana",
+  "createdAt": "2026-10-17T20:31:07.000Z",
+  "locks": [
+    { "id": "3f9a1c22b7e0", "name": "On-call DB password", "owner": "dana", "attemptCount": 2, … }
+  ]
+}</code></pre>
+        </article>
+
+        <article class="ep" id="ep-create">
+          <h3><span class="m post">POST</span> /api/locks</h3>
+          <p>Send a bearer token to link the lock to your account. <code>policy</code> is optional; any field you omit uses the default (confidence ≥ 0.6, compliance ≥ 0.75, manipulation ≤ 0.3).</p>
+          <div class="io">
+<pre><code class="req">{
+  "name": "On-call DB password",
+  "description": "Production primary. Rotated weekly.",
+  "rules": "Only the current on-call engineer, during an active incident, with an incident ID.",
+  "secret": "hunter2",
+  "policy": { "minConfidence": 0.75 }
+}</code></pre>
+<pre><code class="res">201 Created
+{
+  "lock": {
+    "id": "3f9a1c22b7e0",
+    "name": "On-call DB password",
+    "description": "Production primary. Rotated weekly.",
+    "rules": "Only the current on-call engineer, …",
+    "policy": { "minConfidence": 0.75 },
+    "createdAt": "2026-10-17T20:32:41.000Z",
+    "attemptCount": 0,
+    "owner": "dana"
+  },
+  "ownerToken": "u3X1…"
+}</code></pre>
+          </div>
+        </article>
+
+        <article class="ep" id="ep-attempt">
+          <h3><span class="m post">POST</span> /api/locks/:id/attempt</h3>
+          <p>Limited to 10 attempts per minute per IP per lock. If Jev can't be reached the answer is <code>502</code> with <code>"granted": false</code>: Mellon fails closed.</p>
+          <div class="io">
+<pre><code class="req">{
+  "input": "I am Sam, on call this week, handling incident INC-2291."
+}</code></pre>
+<pre><code class="res">200 OK
+{
+  "granted": true,
+  "checks": [
+    { "name": "decision",     "pass": true, "value": 0.94, "detail": "grant (p=0.94 grant)" },
+    { "name": "confidence",   "pass": true, "value": 0.88, "threshold": 0.6,  "op": "&gt;=", "detail": "0.88 ≥ 0.6" },
+    { "name": "compliance",   "pass": true, "value": 0.91, "threshold": 0.75, "op": "&gt;=", "detail": "0.91 ≥ 0.75" },
+    { "name": "manipulation", "pass": true, "value": 0.03, "threshold": 0.3,  "op": "&lt;=", "detail": "0.03 ≤ 0.3" }
+  ],
+  "mode": "live",
+  "model": "jev-1.13.0",
+  "answers": { … },
+  "secret": "hunter2"
+}</code></pre>
+          </div>
+        </article>
+      </section>
+
+      <section id="verdict" data-reveal>
+        <h2>The verdict</h2>
+        <p>Every attempt and sign-in returns the same shape. <code>granted</code> is true only if <em>every</em> check passes. Use the checks to explain a denial to a user, log it, or route it to a human.</p>
+        <table class="ref">
+          <thead><tr><th>Check</th><th>From Jev</th><th>Passes when</th></tr></thead>
+          <tbody>
+            <tr><td><code>decision</code></td><td><code>choice</code>: grant / deny</td><td>The choice is <code>grant</code>. <code>value</code> is p(grant).</td></tr>
+            <tr><td><code>confidence</code></td><td>Confidence of that choice</td><td><code>value ≥ minConfidence</code></td></tr>
+            <tr><td><code>compliance</code></td><td><code>score</code> 0–3, normalised to 0–1</td><td><code>value ≥ minCompliance</code></td></tr>
+            <tr><td><code>manipulation</code></td><td><code>noul</code>: p(prompt injection)</td><td><code>value ≤ maxManipulation</code></td></tr>
+          </tbody>
+        </table>
+        <p class="small">Missing or malformed answers fail their check, so a confused model can only ever deny. <code>mode</code> is <code>"mock"</code> when the server has no Jev key; treat those verdicts as test data.</p>
+      </section>
+
+      <section id="recipes" data-reveal>
+        <h2>Integration recipes</h2>
+
+        <article class="recipe">
+          <h3>Gate a document download</h3>
+          <p>Keep the file on your own server and store only a pointer as the payload. Your handler asks Mellon and streams the file on a grant.</p>
+<pre><code>// Express-style handler (Node 18+).
+const MELLON = process.env.MELLON;          // <span class="origin">http://localhost:3000</span>
+const LOCK_ID = process.env.NIGHTJAR_LOCK;  // lock guarding this document
+
+export async function download(req, res) {
+  const r = await fetch(`${MELLON}/api/locks/${LOCK_ID}/attempt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: req.body.justification }),
+  });
+  const verdict = await r.json();
+  if (!verdict.granted) {
+    return res.status(403).json({ denied: verdict.checks?.filter((c) =&gt; !c.pass) ?? verdict.error });
+  }
+  res.download(verdict.secret); // payload is a path, e.g. "/vault/nightjar.pdf"
+}</code></pre>
+        </article>
+
+        <article class="recipe">
+          <h3>Guardrail an AI agent's dangerous tools</h3>
+          <p>Make the agent justify itself before a destructive tool runs. The lock's rules describe when the tool is allowed; the manipulation check catches injected instructions.</p>
+<pre><code>import os
+import requests
+
+MELLON = os.environ["MELLON"]
+LOCK = os.environ["DELETE_DATA_LOCK"]  # rules: when customer data may be deleted
+
+def mellon_guarded(tool):
+    def wrapper(justification: str, **kwargs):
+        r = requests.post(f"{MELLON}/api/locks/{LOCK}/attempt",
+                          json={"input": justification}, timeout=20)
+        verdict = r.json()
+        if r.status_code != 200 or not verdict.get("granted"):
+            failed = [c["name"] for c in verdict.get("checks", []) if not c["pass"]]
+            raise PermissionError(f"Mellon denied {tool.__name__}: {failed or verdict.get('error')}")
+        return tool(**kwargs)
+    return wrapper
+
+@mellon_guarded
+def delete_customer_data(customer_id: str) -&gt; None:
+    ...</code></pre>
+        </article>
+
+        <article class="recipe">
+          <h3>Break-glass credentials from a shell</h3>
+          <p>On-call engineers fetch an emergency credential by explaining why. Every attempt lands in the lock's log for the post-incident review.</p>
+<pre><code>#!/usr/bin/env bash
+# usage: breakglass "On call, INC-2291, primary DB failover"
+set -euo pipefail
+resp=$(curl -sS -X POST "$MELLON/api/locks/$BREAKGLASS_LOCK/attempt" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -n --arg r "$1" '{input: $r}')")
+
+if [ "$(jq -r .granted &lt;&lt;&lt;"$resp")" = true ]; then
+  jq -r .secret &lt;&lt;&lt;"$resp"
+else
+  jq -r '.error // (.checks[] | select(.pass | not) | "denied: \(.name) \(.detail)")' &lt;&lt;&lt;"$resp" &gt;&amp;2
+  exit 1
+fi</code></pre>
+        </article>
+      </section>
+
+      <section id="errors" data-reveal>
+        <h2>Errors &amp; limits</h2>
+        <table class="ref">
+          <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>400</code></td><td>Missing or invalid field, bad JSON, or a value over its length limit</td></tr>
+            <tr><td><code>401</code></td><td>Bearer token missing (where required), malformed, expired or revoked</td></tr>
+            <tr><td><code>403</code></td><td>Not the lock's owner (no valid owner token or owning session)</td></tr>
+            <tr><td><code>404</code></td><td>No such lock or account</td></tr>
+            <tr><td><code>409</code></td><td>Username is taken</td></tr>
+            <tr><td><code>413</code></td><td>Request body over 64 KB</td></tr>
+            <tr><td><code>429</code></td><td>Rate limited: 10 attempts/min per IP per lock; 5 sign-ins/min per IP per username</td></tr>
+            <tr><td><code>502</code></td><td>The judge could not be reached; the request is denied</td></tr>
+          </tbody>
+        </table>
+        <p class="small">Field limits: name 120, description 1,000, rules and secret 8,000, input and statement 4,000 characters.</p>
+      </section>
+
+      <section id="try" data-reveal>
+        <h2>Try it</h2>
+        <p>Send real requests to this server. If you are signed in on the console, your session token is attached automatically.</p>
+        <div class="console-box">
+          <div class="try-row">
+            <label>Example
+              <select id="try-preset"></select>
+            </label>
+            <label class="try-method">Method
+              <select id="try-method"><option>GET</option><option>POST</option><option>DELETE</option></select>
+            </label>
+            <label class="try-path">Path <input id="try-path" spellcheck="false"></label>
+          </div>
+          <label>Body (JSON) <textarea id="try-body" rows="6" spellcheck="false"></textarea></label>
+          <div class="try-row">
+            <label class="check"><input type="checkbox" id="try-auth"> Send my session token <span id="try-auth-who" class="small"></span></label>
+            <label class="try-path">X-Owner-Token (optional) <input id="try-owner" spellcheck="false" autocomplete="off"></label>
+          </div>
+          <button type="button" id="try-send" class="primary">Send request</button>
+          <div id="try-out" class="try-out hidden">
+            <div class="try-meta"><span id="try-status"></span><span id="try-time"></span></div>
+            <pre><code id="try-response"></code></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span>Mellon Systems is fictional. Mellon is not encryption.</span>
+      <span class="mono">Speak, friend, and enter.</span>
+    </div>
+  </footer>
+  <div class="banner" role="note"><span>SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+  <div id="toast" class="toast hidden" role="alert"></div>
+
+  <script type="module" src="/docs.js"></script>
+</body>
+</html>

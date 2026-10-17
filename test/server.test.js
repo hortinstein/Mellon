@@ -51,7 +51,7 @@ test('stats endpoint exposes counts only', async () => {
     await attempt(call, lock.id, sampleInputs[0].text);
     const r = await call('/api/stats');
     assert.equal(r.status, 200);
-    assert.deepEqual(r.body, { locks: 1, attempts: 1, granted: 1, denied: 0 });
+    assert.deepEqual(r.body, { locks: 1, attempts: 1, granted: 1, denied: 0, accounts: 0 });
     assert.ok(!r.text.includes('Dana'));
   });
 });
