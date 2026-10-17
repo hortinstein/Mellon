@@ -109,3 +109,16 @@ test('reduced motion: content is visible without animation', async ({ page }) =>
   await expect(page.locator('#result h3')).toHaveText('Access granted');
   await expect(page.locator('#sequence')).toBeHidden();
 });
+
+test('technology section renders all three diagrams', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#technology').scrollIntoViewIfNeeded();
+  const imgs = page.locator('#technology .diagram img');
+  await expect(imgs).toHaveCount(3);
+  for (let i = 0; i < 3; i++) {
+    const img = imgs.nth(i);
+    await img.scrollIntoViewIfNeeded();
+    await expect.poll(() => img.evaluate((e) => e.complete && e.naturalWidth)).toBeGreaterThan(0);
+    await expect(img).toHaveAttribute('alt', /.{20,}/);
+  }
+});

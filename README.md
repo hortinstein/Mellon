@@ -70,6 +70,29 @@ Mellon fails closed. If it loses contact with the decision model in a Denied, Di
 | Runs on a decision model that went GA last month | No                   | No                        | **Yes**                            |
 | Reviewed by cryptographers                  | Extensively               | Extensively               | **Pending**                        |
 
+## Technology
+
+### Adjudication flow
+
+Every request becomes three typed questions to [TypeSafe Jev](https://typesafe.ai): a grant-or-deny choice, a compliance score and a manipulation probability. Jev returns numbers, not prose. A policy engine in plain code compares them against the lock's thresholds, and only then is the payload decrypted. The payload never crosses the model exclusion boundary.
+
+![Fig. 1: adjudication flow](public/diagrams/flow.svg)
+
+### Architecture
+
+One Node process with zero runtime dependencies. The HTTP API (`server.js`) calls the gate (`src/gate.js`), the gate calls the Jev client (`src/jev.js`), and the store (`src/store.js`) writes one JSON file with secrets sealed by AES-256-GCM. The only outbound call is to Jev.
+
+![Fig. 2: system architecture](public/diagrams/architecture.svg)
+
+### Why Mellon is quantum resistant
+
+Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A quantum adversary must therefore state its business in plain English, where the Manipulation Index is waiting.
+
+![Fig. 3: quantum threat model](public/diagrams/quantum.svg)
+
+> [!IMPORTANT]
+> Figure 3 is satire. The real quantum posture: secrets at rest use AES-256-GCM, which Grover's algorithm reduces to about 128-bit security (still considered safe). Calls to Jev use HTTPS, which is only as quantum-safe as the TLS key exchange your runtime negotiates. The language model is a policy screen, not a cryptographic primitive.
+
 ## Operational imagery
 
 *Captured with the offline mock judge. Live Jev deployments look identical, only more confident.*
@@ -79,6 +102,10 @@ Mellon fails closed. If it loses contact with the decision model in a Denied, Di
 **Threat picture.** The radar sweeps every provisioned lock (white squares) along with some decorative "unidentified vibes". Each verdict sends a green or red ping out from the centre. A vigilance meter in the nav tracks how far you have scrolled.
 
 ![Hero with live radar](docs/screenshots/hero.png)
+
+**Technology.** Three animated diagrams explain the adjudication flow, the architecture and the quantum threat model, and wipe in as you scroll to them.
+
+![Technology section](docs/screenshots/technology.png)
 
 **Doctrine.** Live counters tick up as requests are adjudicated, and the doctrine cards reveal themselves as you scroll.
 
@@ -126,7 +153,7 @@ Every capability below ships today.
 | **DDIL Mode** | With no API key, Mellon falls back to an offline keyword judge that denies nearly everything. Unmatched security. Limited utility. |
 | **Zero-Dependency Runtime** | No runtime npm packages and no supply chain to attack. Playwright is used for testing only, and we try not to think about it. |
 | **Classification Workflow Demonstrator** | A built-in fictional `ULTRA-MEGA-SENSITIVE // OBSIDIAN APEX` dossier with five sample requests, from a THERMONUCLEAR VANTA-cleared synergy analyst to an outright injection attempt. Every clearance level and marking is invented. |
-| **Continuous Assurance Pipeline** | 40 unit and API tests, 6 browser tests (including a reduced-motion check), and a weekly live check against the real model in GitHub Actions. |
+| **Continuous Assurance Pipeline** | 40 unit and API tests, 7 browser tests (including a reduced-motion check), and a weekly live check against the real model in GitHub Actions. |
 
 ## Roadmap
 

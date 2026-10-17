@@ -312,7 +312,21 @@ code { font-family: var(--mono); word-break: break-all; }
 .tip strong { color: var(--white); font-weight: 500; }
 .tip-label { color: var(--dim); max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 
-.doctrine + .console { margin-top: 72px; }
+.tech + .console { margin-top: 72px; }
+
+/* Technology section */
+.tech { padding-top: 96px; }
+.section-title { font: 500 clamp(30px, 4.4vw, 48px)/1.08 var(--sans); letter-spacing: -0.02em; color: var(--white); margin: 0 0 40px; }
+.fig { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.1fr); gap: 40px; padding: 40px 0; border-top: 1px solid var(--line); align-items: start; }
+@media (max-width: 960px) { .fig { grid-template-columns: minmax(0, 1fr); gap: 20px; } }
+.fig-copy h3 { font: 500 24px/1.15 var(--sans); letter-spacing: -0.01em; color: var(--white); margin: 16px 0 14px; }
+.fig-copy p { color: var(--muted); margin: 0 0 12px; font-size: 15px; }
+.fig-copy .honest { color: var(--warn); font: 400 12px/1.6 var(--mono); border-left: 2px solid var(--warn); padding-left: 12px; margin-top: 18px; }
+.diagram { border: 1px solid var(--line); overflow-x: auto; background: #08090a; }
+.diagram img { display: block; width: 100%; min-width: 680px; height: auto; }
+@media (max-width: 720px) { .fig::after { content: "← Swipe to pan the diagram →"; font: 500 10px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); text-align: center; margin-top: -8px; } }
+.fx .fig .diagram img { clip-path: inset(0 100% 0 0); transition: clip-path 1400ms cubic-bezier(.2,.7,.2,1) 250ms; }
+.fx .fig.in .diagram img { clip-path: inset(0 0 0 0); }
 
 /* Toast */
 .toast { position: fixed; right: 16px; bottom: 16px; z-index: 10; max-width: min(420px, calc(100vw - 32px)); padding: 14px 16px; background: var(--raise); border: 1px solid var(--deny); border-left-width: 3px; color: var(--text); font: 500 12px/1.5 var(--mono); letter-spacing: 0.04em; animation: result-in 300ms ease; }
