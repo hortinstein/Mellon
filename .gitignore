@@ -222,3 +222,5 @@ __marimo__/
 # Mellon runtime data (locks + secrets)
 data/
 node_modules/
+playwright-report/
+test-results/

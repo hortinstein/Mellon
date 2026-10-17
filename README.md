@@ -14,7 +14,21 @@ export MELLON_SECRET_KEY=...       # optional: encrypts stored secrets (AES-256-
 npm start                          # http://localhost:3000
 ```
 
-No dependencies. Needs Node 20 or newer. Run `npm test` for the test suite.
+There are no runtime dependencies. It needs Node 22 or newer.
+
+## Testing
+
+| Command            | What it runs                                                                  |
+|--------------------|-------------------------------------------------------------------------------|
+| `npm test`         | Unit and HTTP API tests (`test/`). Uses a fake judge, so needs no network.    |
+| `npm run test:e2e` | Browser tests (`e2e/`) with Playwright against a real server and the mock judge. Run `npm ci` and `npx playwright install chromium` first. |
+| `npm run test:live`| Sends the classification example's sample requests to the real Jev API (`live/`). Skipped unless `TYPESAFE_API_KEY` is set. |
+| `npm run check`    | Syntax check of every source file.                                            |
+
+GitHub Actions has two workflows:
+
+- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request. It runs the syntax check and the unit tests on Node 22 and 24, then the browser tests. If the browser tests fail, it uploads the Playwright report.
+- **Jev live check** (`.github/workflows/jev-live.yml`) runs every Monday, on demand (you can pick the model), and when the judge code changes on `main`. It needs a `TYPESAFE_API_KEY` repository secret. Without one, the job is skipped with a notice.
 
 Click **Load classification example** to create a fictional `SECRET//NOFORN` document lock.
 Then try the sample requests: a cleared analyst, an allied liaison officer (fails NOFORN),
