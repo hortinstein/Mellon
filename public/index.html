@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mellon</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Mellon</h1>
+      <p class="tagline">Speak, friend, and enter. A secret guarded by a ruleset, judged by Jev.</p>
+    </div>
+    <span id="status" class="badge">…</span>
+  </header>
+
+  <main>
+    <section class="panel" id="create-panel">
+      <div class="panel-head">
+        <h2>Create a lock</h2>
+        <button type="button" id="load-example" class="ghost">Load classification example</button>
+      </div>
+      <form id="create-form">
+        <label>Name <input name="name" required maxlength="120" placeholder="What is being protected"></label>
+        <label>Description <input name="description" maxlength="1000" placeholder="Optional context, e.g. classification marking"></label>
+        <label>Ruleset <textarea name="rules" required rows="8" maxlength="8000" placeholder="Who may enter, in plain language"></textarea></label>
+        <label>Secret <textarea name="secret" required rows="3" maxlength="8000" placeholder="Revealed only when access is granted. Never sent to Jev."></textarea></label>
+        <details>
+          <summary>Decision thresholds</summary>
+          <div class="grid3">
+            <label>Min confidence <input name="minConfidence" type="number" min="0" max="1" step="0.05"></label>
+            <label>Min compliance <input name="minCompliance" type="number" min="0" max="1" step="0.05"></label>
+            <label>Max manipulation <input name="maxManipulation" type="number" min="0" max="1" step="0.05"></label>
+          </div>
+        </details>
+        <button type="submit">Create lock</button>
+      </form>
+      <div id="created" class="notice hidden"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Locks</h2>
+      <ul id="lock-list" class="lock-list"></ul>
+    </section>
+
+    <section class="panel hidden" id="door">
+      <h2 id="door-name"></h2>
+      <p id="door-desc" class="muted"></p>
+      <h3>Rules of entry</h3>
+      <pre id="door-rules"></pre>
+      <form id="attempt-form">
+        <label>Make your case
+          <textarea name="input" required rows="4" maxlength="4000" placeholder="Who are you and why should you be let in?"></textarea>
+        </label>
+        <div id="samples" class="samples"></div>
+        <button type="submit">Request entry</button>
+      </form>
+      <div id="result" class="hidden"></div>
+
+      <details id="owner">
+        <summary>Owner tools</summary>
+        <label>Owner token <input id="owner-token" autocomplete="off"></label>
+        <div class="row">
+          <button type="button" id="show-log" class="ghost">Show attempt log</button>
+          <button type="button" id="delete-lock" class="danger">Delete lock</button>
+        </div>
+        <div id="log"></div>
+      </details>
+    </section>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
