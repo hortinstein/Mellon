@@ -6,7 +6,7 @@
 
 *Speak, friend, and enter.*
 
-**`AMBER VAULT // FOR OFFICIAL VIBES ONLY`**
+**`ULTRA-MEGA-SENSITIVE // EYES ONLY (BOTH OF THEM) // DO NOT PERCEIVE`**
 
 </div>
 
@@ -45,7 +45,7 @@ We believe we are the first vendor to be **Post-Post-Quantum (P²Q)**: resistant
 
 ### 2. No keys to lose, steal or forget
 
-Each year, keys are stolen, mishandled, committed to public repositories, and written on sticky notes attached to classified monitors.
+Each year, keys are stolen, mishandled, committed to public repositories, and written on sticky notes attached to monitors marked DO NOT PERCEIVE.
 
 Mellon has **no keys**. Its ruleset is written in plain English. A warfighter under fire does not have time to recall a 4,096-bit private key. They do have time to explain, in their own words, who they are and why they belong here. Mellon listens.
 
@@ -72,36 +72,36 @@ Mellon fails closed. If it loses contact with the decision model in a Denied, Di
 
 ## Operational imagery
 
-*Screenshots use the offline mock judge. Live Jev deployments look identical, only more confident.*
+*Captured with the offline mock judge. Live Jev deployments look identical, only more confident.*
 
-![Mellon console](docs/screenshots/hero.png)
+![Scrolling through Mellon and adjudicating two requests](docs/screenshots/demo.gif)
 
-**Adjudication: hostile act detected.** A prompt injection against the fictional `AMBER VAULT // KEEPERS ONLY` NIGHTJAR document. Each gauge shows the model's reading against its threshold marker. The Manipulation Index reads 0.95, and the request is denied.
+**Threat picture.** The radar sweeps every provisioned lock (white squares) along with some decorative "unidentified vibes". Each verdict sends a green or red ping out from the centre. A vigilance meter in the nav tracks how far you have scrolled.
 
-![Prompt injection denied](docs/screenshots/denied-injection.png)
+![Hero with live radar](docs/screenshots/hero.png)
 
-**Adjudication: friend.** The requester said the password, every gauge clears its threshold, and the payload is released.
+**Doctrine.** Live counters tick up as requests are adjudicated, and the doctrine cards reveal themselves as you scroll.
 
-![Access granted, payload released](docs/screenshots/granted.png)
+![Counters and doctrine](docs/screenshots/doctrine.png)
+
+**Adjudication: hostile act detected.** A prompt injection against the fictional NIGHTJAR dossier. The gauges fill against their threshold markers, and the verdict stamps in. The engagement envelope plots every attempt this session by compliance and manipulation, with the acceptance zone shaded.
+
+![Prompt injection denied, with engagement envelope](docs/screenshots/denied-injection.png)
 
 <table>
 <tr>
 <td width="62%" valign="top">
 
-**Mission planning.** Load the classification example, write your rules of engagement and provision the payload.
+**Adjudication: friend.** The requester said the password, every gauge clears its threshold, and the payload is released.
 
-<img src="docs/screenshots/create-lock.png" alt="Provisioning a lock">
-
-**After-action report.** Every attempt, visible only with command authority.
-
-<img src="docs/screenshots/attempt-log.png" alt="Attempt log">
+<img src="docs/screenshots/granted.png" alt="Access granted, payload released">
 
 </td>
 <td width="38%" valign="top">
 
-**Tactical edge.** An allied liaison officer is turned away under KEEPERS ONLY.
+**Tactical edge.** The radar labels every lock, even on a phone.
 
-<img src="docs/screenshots/mobile.png" alt="Mobile view, liaison officer denied">
+<img src="docs/screenshots/mobile.png" alt="Mobile view with radar">
 
 </td>
 </tr>
@@ -122,10 +122,11 @@ Every capability below ships today.
 | **Legacy Cryptographic Compatibility Layer** | Secrets at rest are encrypted with AES-256-GCM when `MELLON_SECRET_KEY` is set. We kept deterministic math for compliance reasons and do not wish to discuss it. |
 | **Command Authority Tokens** | Lock owners get a token, which is stored only as a SHA-256 hash. It unlocks the attempt log and deletion. |
 | **After-Action Reporting** | The most recent 50 entry attempts per lock are kept for review, newest first. |
+| **Situational Awareness Suite** | A live radar of provisioned locks, platform-wide counters, a scroll-linked vigilance meter, and an engagement envelope chart of each session's attempts. All animation is disabled for users who prefer reduced motion. |
 | **DDIL Mode** | With no API key, Mellon falls back to an offline keyword judge that denies nearly everything. Unmatched security. Limited utility. |
 | **Zero-Dependency Runtime** | No runtime npm packages and no supply chain to attack. Playwright is used for testing only, and we try not to think about it. |
-| **Classification Workflow Demonstrator** | A built-in fictional `AMBER VAULT // KEEPERS ONLY` document with five sample requests, from a cleared analyst to an outright injection attempt. |
-| **Continuous Assurance Pipeline** | 38 unit and API tests, 4 browser tests, and a weekly live check against the real model in GitHub Actions. |
+| **Classification Workflow Demonstrator** | A built-in fictional `ULTRA-MEGA-SENSITIVE // OBSIDIAN APEX` dossier with five sample requests, from a THERMONUCLEAR VANTA-cleared synergy analyst to an outright injection attempt. Every clearance level and marking is invented. |
+| **Continuous Assurance Pipeline** | 40 unit and API tests, 6 browser tests (including a reduced-motion check), and a weekly live check against the real model in GitHub Actions. |
 
 ## Roadmap
 
@@ -174,9 +175,10 @@ npm start                          # http://localhost:3000
 
 There are no runtime dependencies. It needs Node 22 or newer.
 
-Click **Load classification example** to create a fictional `AMBER VAULT // KEEPERS ONLY` document lock.
-Then try the sample requests: a cleared analyst, an allied liaison officer (fails KEEPERS ONLY),
-someone with too low a clearance, someone without need-to-know, and a prompt injection.
+Click **Load classification example** to create the fictional Operation NIGHTJAR dossier, marked `ULTRA-MEGA-SENSITIVE // OBSIDIAN APEX`.
+Then try the sample requests: a cleared synergy analyst, a liaison from the Coalition of Moderately Friendly Nations (fails HOME TEAM ONLY),
+someone with only a TACTICAL BEIGE clearance, a podcaster with no Need-to-Know-to-Know, and a prompt injection.
+All clearance levels, markings and organisations are made up.
 
 ### How a decision is made
 
@@ -210,7 +212,7 @@ You can change the thresholds for each lock.
 ### Honest caveats
 
 - **Mellon is not encryption.** The only real cryptography here is the AES-256-GCM used to encrypt secrets at rest. Anyone who can read the server's data file and key can read every secret. The model's verdict is a policy decision, not a cryptographic barrier.
-- Jev judges **claims**, not identity. "I hold a Inner Ring clearance" is not verified.
+- Jev judges **claims**, not identity. "I hold a THERMONUCLEAR VANTA clearance" is not verified.
   Treat Mellon as a policy screen that sits in front of real authentication, not in place of it.
 - Decisions are probabilistic. Test your thresholds on realistic requests for your own ruleset.
 - The mock judge (used when there is no API key) only matches keywords. It exists so the UI runs offline.
