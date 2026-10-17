@@ -1,0 +1,15 @@
+{
+  "name": "mellon",
+  "version": "0.1.0",
+  "description": "Non-deterministic lock: a secret guarded by a natural-language ruleset, judged by TypeSafe Jev",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
