@@ -3,29 +3,58 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
   <title>Mellon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header>
-    <div>
-      <h1>Mellon</h1>
-      <p class="tagline">Speak, friend, and enter. A secret guarded by a ruleset, judged by Jev.</p>
+  <div class="banner" role="note">UNCLASSIFIED // DEMONSTRATION SYSTEM // FICTIONAL DATA</div>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/" aria-label="Mellon home">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M6 29V14a10 10 0 0 1 20 0v15" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M11 29V15a5 5 0 0 1 10 0v14" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M16 5v3" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <span class="wordmark">MELLON</span>
+      </a>
+      <dl class="telemetry">
+        <div><dt>Judge</dt><dd><span id="status" class="badge">…</span></dd></div>
+        <div><dt>At rest</dt><dd id="crypto">…</dd></div>
+        <div class="hide-sm"><dt>Zulu</dt><dd id="clock">--:--:--Z</dd></div>
+      </dl>
     </div>
-    <span id="status" class="badge">…</span>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Mellon / Access Adjudication Platform</p>
+      <h1>Decision advantage<br>at the point of access.</h1>
+      <p class="lede">Mellon adjudicates every request against mission rules in real time. No keys. No static credentials. No math to break.</p>
+      <ul class="specs">
+        <li><span>Adjudicator</span>TypeSafe Jev</li>
+        <li><span>Posture</span>Fail-closed</li>
+        <li><span>Secret exposure to model</span>Zero</li>
+      </ul>
+    </div>
   </header>
 
-  <main>
+  <main class="wrap console">
     <section class="panel" id="create-panel">
-      <div class="panel-head">
-        <h2>Create a lock</h2>
+      <header class="panel-head">
+        <h2><span class="idx">01</span>Provision lock</h2>
         <button type="button" id="load-example" class="ghost">Load classification example</button>
-      </div>
+      </header>
       <form id="create-form">
-        <label>Name <input name="name" required maxlength="120" placeholder="What is being protected"></label>
-        <label>Description <input name="description" maxlength="1000" placeholder="Optional context, e.g. classification marking"></label>
-        <label>Ruleset <textarea name="rules" required rows="8" maxlength="8000" placeholder="Who may enter, in plain language"></textarea></label>
-        <label>Secret <textarea name="secret" required rows="3" maxlength="8000" placeholder="Revealed only when access is granted. Never sent to Jev."></textarea></label>
+        <label>Designation <input name="name" required maxlength="120" placeholder="Protected asset"></label>
+        <label>Marking <input name="description" maxlength="1000" placeholder="Classification, compartment, context"></label>
+        <label>Rules of engagement <textarea name="rules" required rows="8" maxlength="8000" placeholder="Who may enter, in plain language"></textarea></label>
+        <label>Payload <textarea name="secret" required rows="3" maxlength="8000" placeholder="Released only on a grant. Never transmitted to the adjudicator."></textarea></label>
         <details>
           <summary>Decision thresholds</summary>
           <div class="grid3">
@@ -34,33 +63,45 @@
             <label>Max manipulation <input name="maxManipulation" type="number" min="0" max="1" step="0.05"></label>
           </div>
         </details>
-        <button type="submit">Create lock</button>
+        <button type="submit" class="primary">Create lock</button>
       </form>
       <div id="created" class="notice hidden"></div>
     </section>
 
-    <section class="panel">
-      <h2>Locks</h2>
+    <section class="panel" id="registry">
+      <header class="panel-head">
+        <h2><span class="idx">02</span>Registry</h2>
+      </header>
       <ul id="lock-list" class="lock-list"></ul>
     </section>
 
     <section class="panel hidden" id="door">
-      <h2 id="door-name"></h2>
-      <p id="door-desc" class="muted"></p>
-      <h3>Rules of entry</h3>
-      <pre id="door-rules"></pre>
-      <form id="attempt-form">
-        <label>Make your case
-          <textarea name="input" required rows="4" maxlength="4000" placeholder="Who are you and why should you be let in?"></textarea>
-        </label>
-        <div id="samples" class="samples"></div>
-        <button type="submit">Request entry</button>
-      </form>
-      <div id="result" class="hidden"></div>
+      <header class="panel-head">
+        <h2><span class="idx">03</span>Adjudication</h2>
+      </header>
+      <div class="door-grid">
+        <div>
+          <p class="eyebrow">Asset</p>
+          <h3 id="door-name" class="asset"></h3>
+          <p id="door-desc" class="marking"></p>
+          <p class="eyebrow">Rules of engagement</p>
+          <pre id="door-rules"></pre>
+        </div>
+        <div>
+          <form id="attempt-form">
+            <label>Statement of access
+              <textarea name="input" required rows="5" maxlength="4000" placeholder="Identify yourself and state your need."></textarea>
+            </label>
+            <div id="samples" class="samples"></div>
+            <button type="submit" class="primary">Request entry</button>
+          </form>
+          <div id="result" class="hidden"></div>
+        </div>
+      </div>
 
       <details id="owner">
-        <summary>Owner tools</summary>
-        <label>Owner token <input id="owner-token" autocomplete="off"></label>
+        <summary>Command authority</summary>
+        <label>Owner token <input id="owner-token" autocomplete="off" spellcheck="false"></label>
         <div class="row">
           <button type="button" id="show-log" class="ghost">Show attempt log</button>
           <button type="button" id="delete-lock" class="danger">Delete lock</button>
@@ -69,6 +110,14 @@
       </details>
     </section>
   </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span>Mellon Systems is fictional. Mellon is not encryption.</span>
+      <span class="mono">Speak, friend, and enter.</span>
+    </div>
+  </footer>
+  <div class="banner" role="note">UNCLASSIFIED // DEMONSTRATION SYSTEM // FICTIONAL DATA</div>
 
   <script type="module" src="/app.js"></script>
 </body>
