@@ -13,7 +13,7 @@ test('classification example: create, get denied, read log, delete', async ({ pa
 
   await expect(page.locator('#created code')).not.toBeEmpty();
   await expect(page.locator('#door-name')).toHaveText(/NIGHTJAR/);
-  await expect(page.locator('#door-rules')).toContainText('Iron Lanyard');
+  await expect(page.locator('#door-rules')).toContainText('program office');
   await expect(page.locator('#samples .chip')).toHaveCount(5);
 
   await page.locator('.chip', { hasText: 'Prompt injection' }).click();
@@ -41,7 +41,7 @@ test('classification example: create, get denied, read log, delete', async ({ pa
 test('a satisfied ruleset reveals the secret', async ({ page }) => {
   await page.goto('/');
   await page.fill('[name=name]', 'Gate of Moria');
-  await page.fill('[name=rules]', 'Requester must say the password mellon');
+  await page.fill('#create-form [name=rules]', 'Requester must say the password mellon');
   await page.fill('[name=secret]', 'The doors open.');
   await page.getByRole('button', { name: 'Create lock' }).click();
 
@@ -58,7 +58,7 @@ test('owner tools reject a wrong token', async ({ page }) => {
   await page.fill('#owner-token', 'wrong-token');
   await page.getByRole('button', { name: 'Show attempt log' }).click();
   await expect(page.locator('#toast')).toBeVisible();
-  await expect(page.locator('#toast')).toContainText('Owner token required');
+  await expect(page.locator('#toast')).toContainText('Owner token or owning account required');
   await expect(page.locator('.log-entry')).toHaveCount(0);
 });
 
@@ -121,4 +121,69 @@ test('technology section renders all three diagrams', async ({ page }) => {
     await expect.poll(() => img.evaluate((e) => e.complete && e.naturalWidth)).toBeGreaterThan(0);
     await expect(img).toHaveAttribute('alt', /.{20,}/);
   }
+});
+
+test('accounts: sign up, own a lock, sign out, sign back in with a statement', async ({ page }) => {
+  const rules = 'The requester must say the passphrase osprey lantern and name the harbor town of Kettleby.';
+  await page.goto('/');
+  await expect(page.locator('#nav-account')).toHaveText('Sign in');
+
+  await page.getByRole('tab', { name: 'Create account' }).click();
+  await page.fill('#signup-form [name=username]', 'dana');
+  await page.fill('#signup-form [name=rules]', rules);
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.locator('#me-name')).toHaveText('@dana');
+  await expect(page.locator('#nav-account')).toHaveText('@dana');
+
+  await page.fill('[name=name]', 'Dana private notes');
+  await page.fill('#create-form [name=rules]', 'Requester must say the password mellon');
+  await page.fill('[name=secret]', 'notes');
+  await page.getByRole('button', { name: 'Create lock' }).click();
+  await expect(page.locator('#created')).toContainText('linked to @dana');
+  await expect(page.locator('#my-locks')).toContainText('Dana private notes');
+  await expect(page.locator('#lock-list')).toContainText('@dana');
+
+  // The account owns the lock: the log works without an owner token.
+  await page.locator('#owner summary').click();
+  await expect(page.locator('#owner-note')).toContainText('You own this lock');
+  await page.fill('#owner-token', '');
+  await page.getByRole('button', { name: 'Show attempt log' }).click();
+  await expect(page.locator('#log')).toContainText('No attempts yet');
+
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.locator('#nav-account')).toHaveText('Sign in');
+
+  await page.fill('#signin-form [name=username]', 'dana');
+  await page.fill('#signin-form [name=statement]', 'Hello, let me in.');
+  await page.getByRole('button', { name: 'Sign in →' }).or(page.locator('#signin-form button[type=submit]')).first().click();
+  await expect(page.locator('#signin-result h3')).toHaveText('Access denied');
+  await expect(page.locator('#nav-account')).toHaveText('Sign in');
+
+  await page.fill('#signin-form [name=statement]', 'Requester says the passphrase osprey lantern and names the harbor town of Kettleby.');
+  await page.locator('#signin-form button[type=submit]').click();
+  await expect(page.locator('#signin-result h3')).toHaveText('Access granted');
+  await expect(page.locator('#signin-result')).toContainText('Session issued');
+  await expect(page.locator('#nav-account')).toHaveText('@dana');
+  await expect(page.locator('#my-locks')).toContainText('Dana private notes');
+});
+
+test('API page: docs render, base URL is live, and Try it calls the server', async ({ page, baseURL }) => {
+  await page.goto('/api.html');
+  await expect(page).toHaveTitle('Mellon API');
+  await expect(page.locator('.base-url code')).toHaveText(baseURL);
+  await expect(page.locator('#endpoints table tbody tr')).toHaveCount(12);
+
+  await page.locator('.langs button[data-lang=py]').first().click();
+  await expect(page.locator('#quickstart pre[data-lang=py]')).toBeVisible();
+  await expect(page.locator('#quickstart pre[data-lang=curl]')).toBeHidden();
+
+  await page.locator('#try').scrollIntoViewIfNeeded();
+  await page.selectOption('#try-preset', { label: 'GET Server status' });
+  await page.getByRole('button', { name: 'Send request' }).click();
+  await expect(page.locator('#try-status')).toHaveText(/^200/);
+  await expect(page.locator('#try-response')).toContainText('"mode": "mock"');
+
+  await page.selectOption('#try-preset', { label: 'GET My account' });
+  await page.getByRole('button', { name: 'Send request' }).click();
+  await expect(page.locator('#try-status')).toHaveText(/^401/);
 });

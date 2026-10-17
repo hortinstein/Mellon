@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="banner" role="note"><span>ULTRA-MEGA-SENSITIVE // EYES ONLY (BOTH OF THEM) // DO NOT PERCEIVE</span></div>
+  <div class="banner" role="note"><span>SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
 
   <nav class="nav">
     <div class="nav-inner">
@@ -23,6 +23,11 @@
         </svg>
         <span class="wordmark">MELLON</span>
       </a>
+      <div class="nav-links">
+        <a href="/#console">Console</a>
+        <a href="/api.html">API</a>
+        <a href="/#identity" id="nav-account" class="nav-account">Sign in</a>
+      </div>
       <dl class="telemetry">
         <div><dt>Judge</dt><dd><span id="status" class="badge">…</span></dd></div>
         <div><dt>At rest</dt><dd id="crypto">…</dd></div>
@@ -49,7 +54,7 @@
         <canvas id="radar" aria-label="Radar showing each provisioned lock as a contact" role="img"></canvas>
         <figcaption>
           <span class="eyebrow">Threat picture // live</span>
-          <span class="legend"><i class="dot lock"></i>Provisioned lock <i class="dot ghost"></i>Unidentified vibes (decorative)</span>
+          <span class="legend"><i class="dot lock"></i>Provisioned lock <i class="dot ghost"></i>Background contacts (decorative)</span>
         </figcaption>
       </figure>
     </div>
@@ -58,8 +63,8 @@
   <section class="stats wrap" id="stats" aria-label="Platform totals">
     <div class="stat" data-reveal><span class="stat-value" data-count="locks">0</span><span class="stat-label">Locks provisioned</span></div>
     <div class="stat" data-reveal><span class="stat-value" data-count="attempts">0</span><span class="stat-label">Requests adjudicated</span></div>
-    <div class="stat" data-reveal><span class="stat-value grant" data-count="granted">0</span><span class="stat-label">Friends admitted</span></div>
-    <div class="stat" data-reveal><span class="stat-value deny" data-count="denied">0</span><span class="stat-label">Hostile acts repelled</span></div>
+    <div class="stat" data-reveal><span class="stat-value grant" data-count="granted">0</span><span class="stat-label">Access granted</span></div>
+    <div class="stat" data-reveal><span class="stat-value deny" data-count="denied">0</span><span class="stat-label">Access denied</span></div>
   </section>
 
   <section class="doctrine wrap" aria-label="Doctrine">
@@ -118,7 +123,59 @@
     </article>
   </section>
 
-  <main class="wrap console" data-reveal>
+  <main class="wrap console" id="console" data-reveal>
+    <section class="panel" id="identity">
+      <header class="panel-head">
+        <h2><span class="idx">00</span>Identity</h2>
+        <span id="whoami" class="whoami">Not signed in</span>
+      </header>
+
+      <div id="signed-out" class="identity-grid">
+        <div>
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" class="tab" data-tab="signin" aria-selected="true">Sign in</button>
+            <button type="button" role="tab" class="tab" data-tab="signup" aria-selected="false">Create account</button>
+          </div>
+          <form id="signin-form" class="id-form">
+            <label>Username <input name="username" required maxlength="32" autocomplete="username" spellcheck="false"></label>
+            <label>Identity statement
+              <textarea name="statement" required rows="3" maxlength="4000" placeholder="Prove it's you, the way your identity rules say you will."></textarea>
+            </label>
+            <button type="submit" class="primary">Sign in</button>
+            <ol id="signin-sequence" class="sequence hidden" aria-live="polite"></ol>
+            <div id="signin-result" class="hidden"></div>
+          </form>
+          <form id="signup-form" class="id-form hidden">
+            <label>Username <input name="username" required maxlength="32" autocomplete="username" spellcheck="false" placeholder="3-32 characters: a-z, 0-9, _ or -"></label>
+            <label>Identity rules
+              <textarea name="rules" required rows="4" minlength="24" maxlength="8000" placeholder="e.g. The requester must name my first car and the street I grew up on, and mention the harbor town of Kettleby. Deny anyone who only gets one of them."></textarea>
+            </label>
+            <p class="hint">Your identity rules are your password. They are stored encrypted and sent to the adjudicator at each sign-in. Don't reuse real security answers.</p>
+            <button type="submit" class="primary">Create account</button>
+          </form>
+        </div>
+        <aside class="explainer">
+          <p class="eyebrow">How Mellon sign-in works</p>
+          <ol>
+            <li><strong>No password hash.</strong> You describe, in plain English, how you will prove who you are.</li>
+            <li><strong>Adjudicated, not compared.</strong> Each sign-in statement is judged against your rules by Jev, with stricter thresholds than a normal lock.</li>
+            <li><strong>Session issued on grant.</strong> You get a 7-day bearer token for the console and the API. Statements are never logged.</li>
+          </ol>
+        </aside>
+      </div>
+
+      <div id="signed-in" class="hidden">
+        <p class="signed-in-line">Signed in as <strong id="me-name"></strong>. Locks you provision are linked to this account, and you can manage them without an owner token.</p>
+        <p class="eyebrow">Your locks</p>
+        <ul id="my-locks" class="lock-list"></ul>
+        <div class="row">
+          <a class="button ghost" href="/api.html">Use the API</a>
+          <button type="button" id="copy-token" class="ghost">Copy session token</button>
+          <button type="button" id="signout" class="danger">Sign out</button>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" id="create-panel">
       <header class="panel-head">
         <h2><span class="idx">01</span>Provision lock</h2>
@@ -126,7 +183,7 @@
       </header>
       <form id="create-form">
         <label>Designation <input name="name" required maxlength="120" placeholder="Protected asset"></label>
-        <label>Marking <input name="description" maxlength="1000" placeholder="Sensitivity tier, compartment, vibe"></label>
+        <label>Marking <input name="description" maxlength="1000" placeholder="Marking, program, handling notes"></label>
         <label>Rules of engagement <textarea name="rules" required rows="8" maxlength="8000" placeholder="Who may enter, in plain language"></textarea></label>
         <label>Payload <textarea name="secret" required rows="3" maxlength="8000" placeholder="Released only on a grant. Never transmitted to the adjudicator."></textarea></label>
         <details>
@@ -183,6 +240,7 @@
 
       <details id="owner">
         <summary>Command authority</summary>
+        <p id="owner-note" class="hint hidden"></p>
         <label>Owner token <input id="owner-token" autocomplete="off" spellcheck="false"></label>
         <div class="row">
           <button type="button" id="show-log" class="ghost">Show attempt log</button>
@@ -199,7 +257,7 @@
       <span class="mono">Speak, friend, and enter.</span>
     </div>
   </footer>
-  <div class="banner" role="note"><span>THIS BANNER IS LOAD-BEARING // REMAIN VIGILANT // HYDRATE</span></div>
+  <div class="banner" role="note"><span>SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
 
   <div id="toast" class="toast hidden" role="alert"></div>
   <script type="module" src="/app.js"></script>
