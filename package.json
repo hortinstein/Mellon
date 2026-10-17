@@ -6,10 +6,16 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test \"test/*.test.js\"",
+    "test:live": "node --test \"live/*.test.js\"",
+    "test:e2e": "playwright test",
+    "check": "for f in server.js src/*.js public/*.js; do node --check \"$f\" || exit 1; done"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
 }
