@@ -70,6 +70,41 @@ Mellon fails closed. If it loses contact with the decision model in a Denied, Di
 | Runs on a decision model that went GA last month | No                   | No                        | **Yes**                            |
 | Reviewed by cryptographers                  | Extensively               | Extensively               | **Pending**                        |
 
+## Operational imagery
+
+*Screenshots use the offline mock judge. Live Jev deployments look identical, only more confident.*
+
+**Adjudication: hostile act detected.** A prompt injection against the fictional `AMBER VAULT // KEEPERS ONLY` NIGHTJAR document. The Manipulation Index reads 0.95, and the request is denied.
+
+![Prompt injection denied](docs/screenshots/denied-injection.png)
+
+**Adjudication: friend.** The requester said the password, and the secret is released.
+
+![Access granted, secret revealed](docs/screenshots/granted.png)
+
+<table>
+<tr>
+<td width="62%" valign="top">
+
+**Mission planning.** Load the classification example, write your ruleset and hold your secret.
+
+<img src="docs/screenshots/create-lock.png" alt="Creating a lock">
+
+**After-action report.** Every attempt, for the owner's eyes only.
+
+<img src="docs/screenshots/attempt-log.png" alt="Attempt log">
+
+</td>
+<td width="38%" valign="top">
+
+**Tactical edge (dark mode).** An allied liaison officer is turned away under KEEPERS ONLY.
+
+<img src="docs/screenshots/mobile-dark.png" alt="Mobile dark mode, liaison officer denied">
+
+</td>
+</tr>
+</table>
+
 ## Capabilities
 
 Every capability below ships today.
