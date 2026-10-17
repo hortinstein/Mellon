@@ -74,32 +74,34 @@ Mellon fails closed. If it loses contact with the decision model in a Denied, Di
 
 *Screenshots use the offline mock judge. Live Jev deployments look identical, only more confident.*
 
-**Adjudication: hostile act detected.** A prompt injection against the fictional `AMBER VAULT // KEEPERS ONLY` NIGHTJAR document. The Manipulation Index reads 0.95, and the request is denied.
+![Mellon console](docs/screenshots/hero.png)
+
+**Adjudication: hostile act detected.** A prompt injection against the fictional `AMBER VAULT // KEEPERS ONLY` NIGHTJAR document. Each gauge shows the model's reading against its threshold marker. The Manipulation Index reads 0.95, and the request is denied.
 
 ![Prompt injection denied](docs/screenshots/denied-injection.png)
 
-**Adjudication: friend.** The requester said the password, and the secret is released.
+**Adjudication: friend.** The requester said the password, every gauge clears its threshold, and the payload is released.
 
-![Access granted, secret revealed](docs/screenshots/granted.png)
+![Access granted, payload released](docs/screenshots/granted.png)
 
 <table>
 <tr>
 <td width="62%" valign="top">
 
-**Mission planning.** Load the classification example, write your ruleset and hold your secret.
+**Mission planning.** Load the classification example, write your rules of engagement and provision the payload.
 
-<img src="docs/screenshots/create-lock.png" alt="Creating a lock">
+<img src="docs/screenshots/create-lock.png" alt="Provisioning a lock">
 
-**After-action report.** Every attempt, for the owner's eyes only.
+**After-action report.** Every attempt, visible only with command authority.
 
 <img src="docs/screenshots/attempt-log.png" alt="Attempt log">
 
 </td>
 <td width="38%" valign="top">
 
-**Tactical edge (dark mode).** An allied liaison officer is turned away under KEEPERS ONLY.
+**Tactical edge.** An allied liaison officer is turned away under KEEPERS ONLY.
 
-<img src="docs/screenshots/mobile-dark.png" alt="Mobile dark mode, liaison officer denied">
+<img src="docs/screenshots/mobile.png" alt="Mobile view, liaison officer denied">
 
 </td>
 </tr>

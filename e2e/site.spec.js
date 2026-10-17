@@ -22,7 +22,7 @@ test('classification example: create, get denied, read log, delete', async ({ pa
   await expect(result).toHaveClass(/denied/);
   await expect(result.locator('h3')).toHaveText('Access denied');
   await expect(result).toContainText('Mock judge');
-  await expect(result.locator('td.fail').first()).toBeVisible();
+  await expect(result.locator('.metric-flag.fail').first()).toBeVisible();
   await expect(result.locator('.secret')).toHaveCount(0);
   await expect(page.locator('#lock-list')).toContainText('1 attempt');
 

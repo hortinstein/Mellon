@@ -67,21 +67,31 @@ export function decide(answers, policy = {}) {
       name: 'decision',
       pass: d?.choice === 'grant',
       detail: d ? `${d.choice} (p=${fmt(d.probabilities?.grant)} grant)` : 'missing',
+      value: num(d?.probabilities?.grant),
     },
     {
       name: 'confidence',
       pass: typeof d?.confidence === 'number' && d.confidence >= p.minConfidence,
       detail: `${fmt(d?.confidence)} ≥ ${p.minConfidence}`,
+      value: num(d?.confidence),
+      threshold: p.minConfidence,
+      op: '>=',
     },
     {
       name: 'compliance',
       pass: compliance !== null && compliance >= p.minCompliance,
       detail: `${fmt(compliance)} ≥ ${p.minCompliance}`,
+      value: compliance,
+      threshold: p.minCompliance,
+      op: '>=',
     },
     {
       name: 'manipulation',
       pass: typeof m?.noul === 'number' && m.noul <= p.maxManipulation,
       detail: `${fmt(m?.noul)} ≤ ${p.maxManipulation}`,
+      value: num(m?.noul),
+      threshold: p.maxManipulation,
+      op: '<=',
     },
   ];
   return { granted: checks.every((x) => x.pass), checks };
@@ -92,4 +102,5 @@ export async function evaluate(jev, lock, input) {
   return { ...decide(res.answers, lock.policy), model: res.model, mode: jev.mode, answers: res.answers };
 }
 
+const num = (n) => (typeof n === 'number' ? n : null);
 const fmt = (n) => (typeof n === 'number' ? n.toFixed(2) : 'n/a');

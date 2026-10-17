@@ -31,6 +31,7 @@ async function loadStatus() {
   badge.textContent = s.mode === 'live' ? `Jev · ${s.model}` : 'Mock judge';
   badge.className = `badge ${s.mode}`;
   badge.title = s.mode === 'live' ? 'Decisions come from TypeSafe Jev' : 'No TYPESAFE_API_KEY set: decisions use crude keyword heuristics';
+  $('#crypto').textContent = s.encrypted ? 'AES-256-GCM' : 'Plaintext';
   const f = $('#create-form');
   f.minConfidence.placeholder = s.defaultPolicy.minConfidence;
   f.minCompliance.placeholder = s.defaultPolicy.minCompliance;
@@ -41,7 +42,7 @@ async function loadLocks() {
   const locks = await api('/api/locks');
   const list = $('#lock-list');
   list.replaceChildren();
-  if (!locks.length) list.append(el('li', { className: 'muted', textContent: 'No locks yet. Create one or load the example.' }));
+  if (!locks.length) list.append(el('li', { className: 'muted', textContent: 'No locks provisioned. Create one or load the classification example.' }));
   for (const lock of locks) {
     const btn = el('button', { type: 'button', className: 'lock' + (current?.id === lock.id ? ' active' : '') },
       el('strong', { textContent: lock.name }),
@@ -65,7 +66,7 @@ function openLock(lock) {
   const samples = $('#samples');
   samples.replaceChildren();
   if (lock.name === classificationExample.name) {
-    samples.append(el('span', { className: 'muted', textContent: 'Try:' }));
+    samples.append(el('span', { className: 'muted', textContent: 'Scenarios' }));
     for (const s of sampleInputs) {
       const chip = el('button', { type: 'button', className: `chip ${s.expect}`, textContent: s.label, title: `Expected: ${s.expect}` });
       chip.onclick = () => { $('#attempt-form').input.value = s.text; };
@@ -76,20 +77,44 @@ function openLock(lock) {
   $('#door').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function meter(c) {
+  const bar = el('div', { className: 'meter' });
+  const fill = el('div', { className: 'meter-fill' });
+  fill.style.width = `${Math.round(Math.max(0, Math.min(1, c.value ?? 0)) * 100)}%`;
+  bar.append(fill);
+  if (typeof c.threshold === 'number') {
+    const mark = el('div', { className: 'meter-threshold', title: `Threshold ${c.op} ${c.threshold}` });
+    mark.style.left = `${c.threshold * 100}%`;
+    bar.append(mark);
+  }
+  return bar;
+}
+
 function renderResult(r) {
   const box = $('#result');
   box.className = `result ${r.granted ? 'granted' : 'denied'}`;
-  box.replaceChildren(el('h3', { textContent: r.granted ? 'Access granted' : 'Access denied' }));
-  if (r.error) box.append(el('p', { textContent: r.error }));
-  if (r.mode === 'mock') box.append(el('p', { className: 'muted', textContent: 'Mock judge: set TYPESAFE_API_KEY for real Jev decisions.' }));
+  const meta = [r.mode === 'mock' ? 'Mock judge' : r.model, new Date().toISOString().slice(11, 19) + 'Z'].filter(Boolean).join(' · ');
+  box.replaceChildren(el('div', { className: 'verdict' },
+    el('h3', { textContent: r.granted ? 'Access granted' : 'Access denied' }),
+    el('span', { className: 'verdict-meta', textContent: meta })));
+  if (r.error) box.append(el('p', { className: 'note error', textContent: r.error }));
+  if (r.mode === 'mock') box.append(el('p', { className: 'note', textContent: 'Mock judge: set TYPESAFE_API_KEY for real Jev decisions.' }));
   if (r.checks) {
-    const table = el('table', {}, el('tr', {}, el('th', { textContent: 'Check' }), el('th', { textContent: 'Value' }), el('th', { textContent: '' })));
+    const readout = el('div', { className: 'readout' });
     for (const c of r.checks) {
-      table.append(el('tr', {}, el('td', { textContent: c.name }), el('td', { textContent: c.detail }), el('td', { className: c.pass ? 'pass' : 'fail', textContent: c.pass ? '✓' : '✗' })));
+      readout.append(el('div', { className: `metric ${c.pass ? 'pass' : 'fail'}`, title: c.detail },
+        el('span', { className: 'metric-name', textContent: c.name }),
+        meter(c),
+        el('span', { className: 'metric-value', textContent: typeof c.value === 'number' ? c.value.toFixed(2) : 'n/a' }),
+        el('span', { className: `metric-flag ${c.pass ? 'pass' : 'fail'}`, textContent: c.pass ? '✓' : '✗' })));
     }
-    box.append(table);
+    box.append(readout);
   }
-  if (r.secret) box.append(el('h4', { textContent: 'Secret' }), el('pre', { className: 'secret', textContent: r.secret }));
+  if (r.secret) {
+    box.append(el('div', { className: 'payload' },
+      el('p', { className: 'eyebrow', textContent: 'Payload released' }),
+      el('pre', { className: 'secret', textContent: r.secret })));
+  }
 }
 
 $('#load-example').onclick = () => {
@@ -166,6 +191,10 @@ $('#delete-lock').onclick = async () => {
     alert(err.message);
   }
 };
+
+const tick = () => { $('#clock').textContent = new Date().toISOString().slice(11, 19) + 'Z'; };
+tick();
+setInterval(tick, 1000);
 
 loadStatus();
 loadLocks();
