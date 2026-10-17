@@ -31,14 +31,34 @@ export function createApp({ store, jev }) {
   // Resolves `Authorization: Bearer <session token>`. A header that is present
   // but invalid is an error rather than silently anonymous.
   const auth = (req) => {
+    if (req.auth) return req.auth;
     const header = req.headers.authorization;
-    if (!header) return { account: null };
+    if (!header) return (req.auth = { account: null });
     const token = header.match(/^Bearer\s+(\S+)$/i)?.[1];
     const account = token && store.sessionAccount(token);
-    return account ? { account, token } : { error: [401, { error: 'Invalid or expired session token' }] };
+    if (!account) return (req.auth = { error: [401, { error: 'Invalid or expired session token' }] });
+    store.touch(account.id);
+    return (req.auth = { account, token });
   };
 
   const manager = (req) => ({ ownerToken: req.headers['x-owner-token'], accountId: auth(req).account?.id });
+
+  // Admin status comes only from the database flag, which no endpoint can write.
+  const admin = (req) => {
+    const { account, error } = auth(req);
+    if (error) return { error };
+    if (!account) return { error: [401, { error: 'Sign in first' }] };
+    if (!account.isAdmin) return { error: [403, { error: 'Administrator access required' }] };
+    return { account };
+  };
+
+  // Admin actions never target other administrators: those are managed with the CLI.
+  const adminTarget = (username) => {
+    const target = store.accountByName(username);
+    if (!target) return { error: [404, { error: 'No such account' }] };
+    if (target.isAdmin) return { error: [403, { error: 'Administrator accounts are managed with scripts/admin.js on the server' }] };
+    return { target };
+  };
 
   const routes = [
     ['GET', /^\/api\/status$/, () => [200, { mode: jev.mode, model: jev.model, encrypted: store.encrypted, defaultPolicy: DEFAULT_POLICY, accountPolicy: ACCOUNT_POLICY }]],
@@ -128,6 +148,7 @@ export function createApp({ store, jev }) {
       if (rateLimited(`${req.socket.remoteAddress}:signin:${username}`, SIGNINS_PER_MINUTE)) return [429, { error: 'Too many sign-in attempts; wait a minute.' }];
       const account = store.accountByName(username);
       if (!account) return [404, { granted: false, error: 'No such account' }];
+      if (account.disabled) return [403, { granted: false, error: 'This account has been disabled by an administrator' }];
 
       // The account is adjudicated exactly like a lock whose payload is a session.
       const gate = {
@@ -144,6 +165,7 @@ export function createApp({ store, jev }) {
         return [502, { granted: false, error: 'The gatekeeper could not reach a decision. Sign-in denied.' }];
       }
       // Statements are never logged: for an account they work like a password.
+      store.recordSignIn(account.id, result.granted);
       const response = { granted: result.granted, checks: result.checks, mode: result.mode, model: result.model };
       if (result.granted) Object.assign(response, { username: account.username }, store.createSession(account.id));
       return [200, response];
@@ -161,7 +183,52 @@ export function createApp({ store, jev }) {
       const { account, error } = auth(req);
       if (error) return error;
       if (!account) return [401, { error: 'Sign in first' }];
-      return [200, { username: account.username, createdAt: account.createdAt, locks: store.locksFor(account.id) }];
+      return [200, { username: account.username, createdAt: account.createdAt, isAdmin: Boolean(account.isAdmin), locks: store.locksFor(account.id) }];
+    }],
+
+    /* Administration */
+
+    ['GET', /^\/api\/admin\/overview$/, (req) => {
+      const { error } = admin(req);
+      if (error) return error;
+      const accounts = store.accountsOverview();
+      const activeSessions = accounts.reduce((n, a) => n + a.activeSessions, 0);
+      return [200, { totals: { ...store.stats(), activeSessions, admins: accounts.filter((a) => a.isAdmin).length }, accounts }];
+    }],
+
+    ['GET', /^\/api\/admin\/accounts\/([a-z0-9_-]+)$/, (req, [username]) => {
+      const { error } = admin(req);
+      if (error) return error;
+      const row = store.accountsOverview().find((a) => a.username === username);
+      if (!row) return [404, { error: 'No such account' }];
+      return [200, { account: row, locks: store.locksFor(store.accountByName(username).id) }];
+    }],
+
+    ['POST', /^\/api\/admin\/accounts\/([a-z0-9_-]+)\/disable$/, async (req, [username]) => {
+      const { error } = admin(req);
+      if (error) return error;
+      const { target, error: targetError } = adminTarget(username);
+      if (targetError) return targetError;
+      const body = await readJson(req);
+      if (typeof body.disabled !== 'boolean') return [400, { error: '"disabled" must be true or false' }];
+      store.setDisabled(target.id, body.disabled);
+      return [200, { username, disabled: body.disabled }];
+    }],
+
+    ['POST', /^\/api\/admin\/accounts\/([a-z0-9_-]+)\/revoke-sessions$/, (req, [username]) => {
+      const { error } = admin(req);
+      if (error) return error;
+      const { target, error: targetError } = adminTarget(username);
+      if (targetError) return targetError;
+      return [200, { username, revoked: store.revokeSessionsFor(target.id) }];
+    }],
+
+    ['DELETE', /^\/api\/admin\/accounts\/([a-z0-9_-]+)$/, (req, [username]) => {
+      const { error } = admin(req);
+      if (error) return error;
+      const { target, error: targetError } = adminTarget(username);
+      if (targetError) return targetError;
+      return [200, { username, ...store.deleteAccount(target.id) }];
     }],
   ];
 
@@ -224,7 +291,7 @@ function send(res, status, body) {
 }
 
 async function serveStatic(pathname, res) {
-  const aliases = { '/': '/index.html', '/api': '/api.html', '/docs': '/api.html' };
+  const aliases = { '/': '/index.html', '/api': '/api.html', '/docs': '/api.html', '/admin': '/admin.html' };
   const rel = normalize(aliases[pathname] ?? pathname).replace(/^(\.\.[/\\])+/, '');
   const file = join(PUBLIC, rel);
   if (!file.startsWith(PUBLIC)) return send(res, 403, { error: 'Forbidden' });
@@ -237,13 +304,23 @@ async function serveStatic(pathname, res) {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+export function start() {
   const store = createStore(process.env.MELLON_DATA || join(ROOT, 'data', 'locks.json'));
   const jev = createJevClient();
   const port = Number(process.env.PORT) || 3000;
-  createServer(createApp({ store, jev })).listen(port, () => {
+  const server = createServer(createApp({ store, jev }));
+  const shutdown = () => {
+    store.flush();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 5000).unref();
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+  server.listen(port, () => {
     console.log(`Mellon listening on http://localhost:${port}`);
     console.log(jev.mode === 'live' ? `Judge: TypeSafe Jev (${jev.model})` : 'Judge: MOCK heuristics (set TYPESAFE_API_KEY to use Jev)');
     if (!store.encrypted) console.log('Warning: secrets stored in plaintext (set MELLON_SECRET_KEY to encrypt at rest)');
   });
 }
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) start();

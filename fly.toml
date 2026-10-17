@@ -1,0 +1,46 @@
+# Fly.io configuration. Deploy with scripts/fly-deploy.sh <app-name>, which
+# creates the app, the volume and the secrets on first run.
+#
+# Mellon stores everything in one JSON file on the mounted volume, so it must run
+# as exactly ONE machine. Don't scale it out; scale up (memory/CPU) instead.
+app = "mellon"
+primary_region = "iad"
+kill_signal = "SIGTERM"
+kill_timeout = "10s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  MELLON_DATA = "/data/mellon.json"
+  JEV_MODEL = "jev-latest"
+
+[[mounts]]
+  source = "mellon_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/status"
+    timeout = "5s"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

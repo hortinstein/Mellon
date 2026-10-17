@@ -1,0 +1,17 @@
+# docker compose up -d  →  http://localhost:3000
+services:
+  mellon:
+    build: .
+    image: mellon:latest
+    ports:
+      - "${MELLON_PORT:-3000}:8080"
+    environment:
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+      MELLON_SECRET_KEY: ${MELLON_SECRET_KEY:?Set MELLON_SECRET_KEY in .env (see .env.example)}
+      JEV_MODEL: ${JEV_MODEL:-jev-latest}
+    volumes:
+      - mellon-data:/data
+    restart: unless-stopped
+
+volumes:
+  mellon-data:

@@ -9,7 +9,7 @@
     "test": "node --test \"test/*.test.js\"",
     "test:live": "node --test \"live/*.test.js\"",
     "test:e2e": "playwright test",
-    "check": "for f in server.js src/*.js public/*.js; do node --check \"$f\" || exit 1; done"
+    "check": "for f in server.js src/*.js public/*.js scripts/*.js; do node --check \"$f\" || exit 1; done"
   },
   "engines": {
     "node": ">=22"

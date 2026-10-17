@@ -171,7 +171,7 @@ test('API page: docs render, base URL is live, and Try it calls the server', asy
   await page.goto('/api.html');
   await expect(page).toHaveTitle('Mellon API');
   await expect(page.locator('.base-url code')).toHaveText(baseURL);
-  await expect(page.locator('#endpoints table tbody tr')).toHaveCount(12);
+  await expect(page.locator('#endpoints table tbody tr')).toHaveCount(17);
 
   await page.locator('.langs button[data-lang=py]').first().click();
   await expect(page.locator('#quickstart pre[data-lang=py]')).toBeVisible();
@@ -186,4 +186,52 @@ test('API page: docs render, base URL is live, and Try it calls the server', asy
   await page.selectOption('#try-preset', { label: 'GET My account' });
   await page.getByRole('button', { name: 'Send request' }).click();
   await expect(page.locator('#try-status')).toHaveText(/^401/);
+});
+
+test('admin console: only the database flag unlocks it, and it controls other accounts', async ({ page, request }) => {
+  const { execFileSync } = await import('node:child_process');
+  const { E2E_DATA } = await import('../playwright.config.js');
+  const rules = 'The requester must say the passphrase osprey lantern and name the harbor town of Kettleby.';
+
+  // Two accounts via the API; "sam" gets some usage.
+  const root = await (await request.post('/api/accounts', { data: { username: 'root', rules } })).json();
+  const sam = await (await request.post('/api/accounts', { data: { username: 'sam', rules } })).json();
+  const lock = (await (await request.post('/api/locks', { headers: { Authorization: `Bearer ${sam.token}` }, data: { name: 'Sam vault', rules: 'Requester must say the password mellon', secret: 's' } })).json()).lock;
+  await request.post(`/api/locks/${lock.id}/attempt`, { data: { input: 'Requester says: password mellon' } });
+
+  await page.goto('/');
+  await page.evaluate((s) => localStorage.setItem('mellon:session', JSON.stringify(s)), { token: root.token, username: 'root' });
+
+  await page.goto('/admin');
+  await expect(page.locator('#gate')).toContainText('Not an administrator');
+
+  execFileSync(process.execPath, ['scripts/admin.js', 'grant', 'root'], { env: { ...process.env, MELLON_DATA: E2E_DATA } });
+
+  await page.goto('/');
+  await expect(page.locator('#nav-admin')).toBeVisible();
+  await page.goto('/admin');
+  await expect(page.locator('#admin-app')).toBeVisible();
+  const samRow = page.locator('#accounts tbody tr', { hasText: '@sam' });
+  await expect(samRow).toContainText('1 / 0');
+  await expect(page.locator('#accounts tbody tr', { hasText: '@root' })).toContainText('Admin');
+
+  await samRow.click();
+  await expect(page.locator('#detail-name')).toHaveText('@sam');
+  await expect(page.locator('#detail-locks')).toContainText('Sam vault');
+  await page.locator('#detail-locks button', { hasText: 'Log' }).click();
+  await expect(page.locator('#detail-log .log-entry')).toHaveCount(1);
+
+  await page.getByRole('button', { name: 'Disable account' }).click();
+  await expect(samRow).toContainText('Disabled');
+  expect((await request.get('/api/me', { headers: { Authorization: `Bearer ${sam.token}` } })).status()).toBe(401);
+  await page.getByRole('button', { name: 'Enable account' }).click();
+  await expect(samRow).toContainText('Active');
+
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Delete account and locks' }).click();
+  await expect(page.locator('#accounts tbody tr', { hasText: '@sam' })).toHaveCount(0);
+
+  // The admin can't act on itself from the UI.
+  await page.locator('#accounts tbody tr', { hasText: '@root' }).click();
+  await expect(page.getByRole('button', { name: 'Delete account and locks' })).toBeDisabled();
 });

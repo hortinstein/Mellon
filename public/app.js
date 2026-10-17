@@ -159,10 +159,15 @@ async function renderIdentity() {
   const nav = $('#nav-account');
   nav.textContent = on ? `@${session.username}` : 'Sign in';
   nav.classList.toggle('signed-in', on);
-  if (!on) return;
+  if (!on) {
+    $('#nav-admin').classList.add('hidden');
+    return;
+  }
   $('#me-name').textContent = `@${session.username}`;
   try {
     const me = await api('/api/me');
+    $('#nav-admin').classList.toggle('hidden', !me.isAdmin);
+    $('#admin-link').classList.toggle('hidden', !me.isAdmin);
     const list = $('#my-locks');
     list.replaceChildren();
     if (!me.locks.length) list.append(el('li', { className: 'muted', textContent: 'No locks yet. Anything you provision now is linked to you.' }));
