@@ -26,6 +26,8 @@ export function createApp({ store, jev }) {
   const routes = [
     ['GET', /^\/api\/status$/, () => [200, { mode: jev.mode, model: jev.model, encrypted: store.encrypted, defaultPolicy: DEFAULT_POLICY }]],
 
+    ['GET', /^\/api\/stats$/, () => [200, store.stats()]],
+
     ['GET', /^\/api\/locks$/, () => [200, store.list()]],
 
     ['POST', /^\/api\/locks$/, async (req) => {

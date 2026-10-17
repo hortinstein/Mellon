@@ -45,6 +45,17 @@ test('grant releases the secret; deny does not; judge never sees it', async () =
   });
 });
 
+test('stats endpoint exposes counts only', async () => {
+  await withServer(fakeJudge(), async ({ call }) => {
+    const { lock } = await createLock(call);
+    await attempt(call, lock.id, sampleInputs[0].text);
+    const r = await call('/api/stats');
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body, { locks: 1, attempts: 1, granted: 1, denied: 0 });
+    assert.ok(!r.text.includes('Dana'));
+  });
+});
+
 test('judge never receives the secret, even when stored in plaintext', async () => {
   const judge = fakeJudge();
   await withServer(judge, async ({ call }) => {

@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="banner" role="note">UNCLASSIFIED // DEMONSTRATION SYSTEM // FICTIONAL DATA</div>
+  <div class="banner" role="note"><span>ULTRA-MEGA-SENSITIVE // EYES ONLY (BOTH OF THEM) // DO NOT PERCEIVE</span></div>
 
   <nav class="nav">
     <div class="nav-inner">
@@ -26,25 +26,64 @@
       <dl class="telemetry">
         <div><dt>Judge</dt><dd><span id="status" class="badge">…</span></dd></div>
         <div><dt>At rest</dt><dd id="crypto">…</dd></div>
+        <div class="hide-sm"><dt>Vigilance</dt><dd id="vigilance">0%</dd></div>
         <div class="hide-sm"><dt>Zulu</dt><dd id="clock">--:--:--Z</dd></div>
       </dl>
     </div>
+    <div class="progress" aria-hidden="true"><div id="progress-bar"></div></div>
   </nav>
 
   <header class="hero">
-    <div class="wrap">
-      <p class="eyebrow">Mellon / Access Adjudication Platform</p>
-      <h1>Decision advantage<br>at the point of access.</h1>
-      <p class="lede">Mellon adjudicates every request against mission rules in real time. No keys. No static credentials. No math to break.</p>
-      <ul class="specs">
-        <li><span>Adjudicator</span>TypeSafe Jev</li>
-        <li><span>Posture</span>Fail-closed</li>
-        <li><span>Secret exposure to model</span>Zero</li>
-      </ul>
+    <div class="wrap hero-grid">
+      <div class="hero-copy" data-reveal>
+        <p class="eyebrow">Mellon / Access Adjudication Platform</p>
+        <h1>Decision advantage<br>at the point of access.</h1>
+        <p class="lede">Mellon adjudicates every request against mission rules in real time. No keys. No static credentials. No math to break.</p>
+        <ul class="specs">
+          <li><span>Adjudicator</span>TypeSafe Jev</li>
+          <li><span>Posture</span>Fail-closed</li>
+          <li><span>Secret exposure to model</span>Zero</li>
+        </ul>
+      </div>
+      <figure class="radar" data-reveal>
+        <canvas id="radar" aria-label="Radar showing each provisioned lock as a contact" role="img"></canvas>
+        <figcaption>
+          <span class="eyebrow">Threat picture // live</span>
+          <span class="legend"><i class="dot lock"></i>Provisioned lock <i class="dot ghost"></i>Unidentified vibes (decorative)</span>
+        </figcaption>
+      </figure>
     </div>
   </header>
 
-  <main class="wrap console">
+  <section class="stats wrap" id="stats" aria-label="Platform totals">
+    <div class="stat" data-reveal><span class="stat-value" data-count="locks">0</span><span class="stat-label">Locks provisioned</span></div>
+    <div class="stat" data-reveal><span class="stat-value" data-count="attempts">0</span><span class="stat-label">Requests adjudicated</span></div>
+    <div class="stat" data-reveal><span class="stat-value grant" data-count="granted">0</span><span class="stat-label">Friends admitted</span></div>
+    <div class="stat" data-reveal><span class="stat-value deny" data-count="denied">0</span><span class="stat-label">Hostile acts repelled</span></div>
+  </section>
+
+  <section class="doctrine wrap" aria-label="Doctrine">
+    <p class="eyebrow" data-reveal>Doctrine</p>
+    <div class="doctrine-grid">
+      <article class="card" data-reveal>
+        <span class="card-idx">I</span>
+        <h3>Post-Post-Quantum</h3>
+        <p>Quantum computers explore every state at once. Mellon is already in every state at once. There is no algorithm to run against it, because it is not running one.</p>
+      </article>
+      <article class="card" data-reveal>
+        <span class="card-idx">II</span>
+        <h3>Zero keys. Zero math.</h3>
+        <p>The warfighter cannot recall a 4,096-bit key under fire. They can explain who they are and why they belong here. Mellon listens.</p>
+      </article>
+      <article class="card" data-reveal>
+        <span class="card-idx">III</span>
+        <h3>Fail-closed doctrine</h3>
+        <p>When the uplink drops, nobody gets in. Not the adversary. Not the warfighter. Not the general. Perfect parity of denial across the kill chain.</p>
+      </article>
+    </div>
+  </section>
+
+  <main class="wrap console" data-reveal>
     <section class="panel" id="create-panel">
       <header class="panel-head">
         <h2><span class="idx">01</span>Provision lock</h2>
@@ -52,7 +91,7 @@
       </header>
       <form id="create-form">
         <label>Designation <input name="name" required maxlength="120" placeholder="Protected asset"></label>
-        <label>Marking <input name="description" maxlength="1000" placeholder="Classification, compartment, context"></label>
+        <label>Marking <input name="description" maxlength="1000" placeholder="Sensitivity tier, compartment, vibe"></label>
         <label>Rules of engagement <textarea name="rules" required rows="8" maxlength="8000" placeholder="Who may enter, in plain language"></textarea></label>
         <label>Payload <textarea name="secret" required rows="3" maxlength="8000" placeholder="Released only on a grant. Never transmitted to the adjudicator."></textarea></label>
         <details>
@@ -86,6 +125,13 @@
           <p id="door-desc" class="marking"></p>
           <p class="eyebrow">Rules of engagement</p>
           <pre id="door-rules"></pre>
+          <figure id="envelope" class="envelope hidden">
+            <figcaption>
+              <span class="eyebrow">Engagement envelope // this session</span>
+              <span class="legend"><i class="key grant"></i>Granted <i class="key deny"></i>Denied</span>
+            </figcaption>
+            <div class="envelope-plot"></div>
+          </figure>
         </div>
         <div>
           <form id="attempt-form">
@@ -95,6 +141,7 @@
             <div id="samples" class="samples"></div>
             <button type="submit" class="primary">Request entry</button>
           </form>
+          <ol id="sequence" class="sequence hidden" aria-live="polite"></ol>
           <div id="result" class="hidden"></div>
         </div>
       </div>
@@ -117,8 +164,9 @@
       <span class="mono">Speak, friend, and enter.</span>
     </div>
   </footer>
-  <div class="banner" role="note">UNCLASSIFIED // DEMONSTRATION SYSTEM // FICTIONAL DATA</div>
+  <div class="banner" role="note"><span>THIS BANNER IS LOAD-BEARING // REMAIN VIGILANT // HYDRATE</span></div>
 
+  <div id="toast" class="toast hidden" role="alert"></div>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

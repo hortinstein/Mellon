@@ -56,6 +56,13 @@ export function createStore(file, { secretKey = process.env.MELLON_SECRET_KEY } 
 
     get: (id) => locks[id] ?? null,
     list: () => Object.values(locks).map(publicView),
+
+    // Aggregate counts only: no inputs, verdict details or lock ids.
+    stats() {
+      const all = Object.values(locks).flatMap((l) => l.attempts);
+      const granted = all.filter((a) => a.granted).length;
+      return { locks: Object.keys(locks).length, attempts: all.length, granted, denied: all.length - granted };
+    },
     revealSecret: (id) => open(locks[id].secret),
 
     isOwner(id, token) {

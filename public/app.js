@@ -1,7 +1,13 @@
 import { classificationExample, sampleInputs } from './examples.js';
+import { createCounters, createRadar, initScroll, reducedMotion, renderEnvelope, runSequence } from './fx.js';
 
 const $ = (sel) => document.querySelector(sel);
 let current = null;
+let defaultPolicy = { minConfidence: 0.6, minCompliance: 0.75, maxManipulation: 0.3 };
+const session = new Map(); // lock id -> this session's plotted attempts
+const radar = createRadar($('#radar'));
+const updateCounters = createCounters($('#stats'));
+const refreshStats = () => api('/api/stats').then(updateCounters).catch(() => {});
 
 const api = async (path, opts = {}) => {
   const res = await fetch(path, {
@@ -32,6 +38,7 @@ async function loadStatus() {
   badge.className = `badge ${s.mode}`;
   badge.title = s.mode === 'live' ? 'Decisions come from TypeSafe Jev' : 'No TYPESAFE_API_KEY set: decisions use crude keyword heuristics';
   $('#crypto').textContent = s.encrypted ? 'AES-256-GCM' : 'Plaintext';
+  defaultPolicy = s.defaultPolicy;
   const f = $('#create-form');
   f.minConfidence.placeholder = s.defaultPolicy.minConfidence;
   f.minCompliance.placeholder = s.defaultPolicy.minCompliance;
@@ -40,6 +47,7 @@ async function loadStatus() {
 
 async function loadLocks() {
   const locks = await api('/api/locks');
+  radar.setLocks(locks);
   const list = $('#lock-list');
   list.replaceChildren();
   if (!locks.length) list.append(el('li', { className: 'muted', textContent: 'No locks provisioned. Create one or load the classification example.' }));
@@ -62,6 +70,8 @@ function openLock(lock) {
   $('#log').replaceChildren();
   $('#owner-token').value = tokens.get(lock.id);
   $('#attempt-form').input.value = '';
+  $('#sequence').classList.add('hidden');
+  drawEnvelope();
 
   const samples = $('#samples');
   samples.replaceChildren();
@@ -80,7 +90,9 @@ function openLock(lock) {
 function meter(c) {
   const bar = el('div', { className: 'meter' });
   const fill = el('div', { className: 'meter-fill' });
-  fill.style.width = `${Math.round(Math.max(0, Math.min(1, c.value ?? 0)) * 100)}%`;
+  const width = `${Math.round(Math.max(0, Math.min(1, c.value ?? 0)) * 100)}%`;
+  if (reducedMotion()) fill.style.width = width;
+  else requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.width = width; }));
   bar.append(fill);
   if (typeof c.threshold === 'number') {
     const mark = el('div', { className: 'meter-threshold', title: `Threshold ${c.op} ${c.threshold}` });
@@ -101,8 +113,8 @@ function renderResult(r) {
   if (r.mode === 'mock') box.append(el('p', { className: 'note', textContent: 'Mock judge: set TYPESAFE_API_KEY for real Jev decisions.' }));
   if (r.checks) {
     const readout = el('div', { className: 'readout' });
-    for (const c of r.checks) {
-      readout.append(el('div', { className: `metric ${c.pass ? 'pass' : 'fail'}`, title: c.detail },
+    for (const [i, c] of r.checks.entries()) {
+      readout.append(el('div', { className: `metric ${c.pass ? 'pass' : 'fail'}`, title: c.detail, style: `--i:${i}` },
         el('span', { className: 'metric-name', textContent: c.name }),
         meter(c),
         el('span', { className: 'metric-value', textContent: typeof c.value === 'number' ? c.value.toFixed(2) : 'n/a' }),
@@ -115,6 +127,32 @@ function renderResult(r) {
       el('p', { className: 'eyebrow', textContent: 'Payload released' }),
       el('pre', { className: 'secret', textContent: r.secret })));
   }
+}
+
+let toastTimer;
+function notify(message) {
+  const toast = $('#toast');
+  toast.textContent = message;
+  toast.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add('hidden'), 5000);
+}
+
+function drawEnvelope() {
+  if (!current) return;
+  renderEnvelope($('#envelope'), session.get(current.id) || [], { ...defaultPolicy, ...current.policy });
+}
+
+function recordPoint(r, input) {
+  const value = (name) => r.checks?.find((c) => c.name === name)?.value;
+  const compliance = value('compliance');
+  const manipulation = value('manipulation');
+  if (typeof compliance !== 'number' || typeof manipulation !== 'number') return;
+  const points = session.get(current.id) || [];
+  const sample = sampleInputs.find((s) => s.text === input);
+  points.push({ n: points.length + 1, compliance, manipulation, granted: r.granted, label: sample ? sample.label : input.slice(0, 48) });
+  session.set(current.id, points);
+  drawEnvelope();
 }
 
 $('#load-example').onclick = () => {
@@ -141,8 +179,9 @@ $('#create-form').onsubmit = async (e) => {
       el('code', { textContent: ownerToken }),
     );
     openLock(lock);
+    refreshStats();
   } catch (err) {
-    alert(err.message);
+    notify(err.message);
   }
 };
 
@@ -151,11 +190,26 @@ $('#attempt-form').onsubmit = async (e) => {
   const btn = e.target.querySelector('button[type=submit]');
   btn.disabled = true;
   btn.textContent = 'Judging…';
+  const input = e.target.input.value;
+  $('#result').classList.add('hidden');
+  const request = api(`/api/locks/${current.id}/attempt`, { method: 'POST', body: { input } });
+  const lines = [
+    'ESTABLISHING UPLINK TO ADJUDICATOR',
+    `TRANSMITTING STATEMENT OF ACCESS (${input.length} CHARS)`,
+    'PAYLOAD WITHHELD FROM MODEL',
+    'EVALUATING RULES OF ENGAGEMENT',
+    'COMPUTING MANIPULATION INDEX',
+  ];
   try {
-    renderResult(await api(`/api/locks/${current.id}/attempt`, { method: 'POST', body: { input: e.target.input.value } }));
+    const r = await runSequence($('#sequence'), lines, request);
+    renderResult(r);
+    recordPoint(r, input);
+    radar.ping(r.granted);
   } catch (err) {
     renderResult({ granted: false, error: err.message });
+    radar.ping(false);
   } finally {
+    refreshStats();
     btn.disabled = false;
     btn.textContent = 'Request entry';
     loadLocks();
@@ -176,7 +230,7 @@ $('#show-log').onclick = async () => {
         el('div', { textContent: a.input })));
     }
   } catch (err) {
-    alert(err.message);
+    notify(err.message);
   }
 };
 
@@ -187,8 +241,9 @@ $('#delete-lock').onclick = async () => {
     current = null;
     $('#door').classList.add('hidden');
     loadLocks();
+    refreshStats();
   } catch (err) {
-    alert(err.message);
+    notify(err.message);
   }
 };
 
@@ -196,5 +251,7 @@ const tick = () => { $('#clock').textContent = new Date().toISOString().slice(11
 tick();
 setInterval(tick, 1000);
 
+initScroll();
 loadStatus();
 loadLocks();
+refreshStats();

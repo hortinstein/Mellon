@@ -77,3 +77,14 @@ test('remove deletes the lock', () => {
   assert.equal(store.get(lock.id), null);
   assert.deepEqual(store.list(), []);
 });
+
+test('stats aggregate counts across locks', () => {
+  const store = createStore(tempFile(), { secretKey: 'k' });
+  assert.deepEqual(store.stats(), { locks: 0, attempts: 0, granted: 0, denied: 0 });
+  const a = store.create(lockInput).lock;
+  const b = store.create(lockInput).lock;
+  store.recordAttempt(a.id, { input: 'x', granted: true });
+  store.recordAttempt(a.id, { input: 'y', granted: false });
+  store.recordAttempt(b.id, { input: 'z', granted: false });
+  assert.deepEqual(store.stats(), { locks: 2, attempts: 3, granted: 1, denied: 2 });
+});
