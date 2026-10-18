@@ -88,9 +88,9 @@
   <text class="f" x="776" y="296">jev-latest</text>
 
   <rect class="box ext" x="760" y="336" width="176" height="76"/>
-  <text class="t" x="776" y="362">DISK</text>
+  <text class="t" x="776" y="362">DISK / REDIS</text>
   <text class="s" x="776" y="384">data/locks.json</text>
-  <text class="f" x="776" y="400">mode 0600</text>
+  <text class="f" x="776" y="400">or Upstash REST</text>
 
   <!-- Arrows -->
   <path class="flow" d="M224 136H290" marker-end="url(#a)"/>
@@ -104,5 +104,5 @@
   <path class="cfg" d="M760 136H702"/>
   <text class="lbl" x="704" y="128" style="fill:#5a6068">cfg</text>
 
-  <text class="s" x="24" y="452">One process, no runtime dependencies. The only network call is to Jev; the only persistent state is one JSON file.</text>
+  <text class="s" x="24" y="452">No runtime dependencies. State is one JSON file, or Upstash Redis on serverless hosts such as Vercel.</text>
 </svg>

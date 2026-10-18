@@ -169,9 +169,9 @@ Every capability below ships today.
 | **Classification Workflow Demonstrator** | A built-in fictional `SENSITIVE // PROGRAM NIGHTJAR` document with five sample requests, from a cleared program analyst to an outright injection attempt. The program, clearance levels and markings are invented. |
 | **Mellon Identity** | Accounts are Mellons too. You register plain-English identity rules instead of a password, and every sign-in is adjudicated by Jev under stricter thresholds. Locks you create while signed in are linked to your account. |
 | **Command Authority Console** | `/admin` shows every account's usage (locks, attempts, sign-ins, API calls, sessions, last seen) and can disable accounts, revoke sessions, read any lock's log, and delete accounts or locks. The admin flag lives only in the database and is set from the server's command line, never through the API. |
-| **Deploy Anywhere** | A small Docker image that runs unprivileged, a docker-compose file, and Fly.io scripts and config, with CI that smoke-tests the image. |
+| **Deploy Anywhere** | A small Docker image that runs unprivileged, a docker-compose file, Fly.io scripts and config, and a Vercel deployment backed by Upstash Redis, with CI that smoke-tests the image. |
 | **Developer API** | A documented JSON API at `/api.html`, with a quickstart in curl, JavaScript and Python, integration recipes and a live Try-it console. |
-| **Continuous Assurance Pipeline** | 57 unit and API tests, 10 browser tests (including a reduced-motion check), a Docker smoke test, and a weekly live check against the real model in GitHub Actions. |
+| **Continuous Assurance Pipeline** | 67 unit and API tests, 10 browser tests (including a reduced-motion check), a Docker smoke test, and a weekly live check against the real model in GitHub Actions. |
 
 ## Roadmap
 
@@ -292,14 +292,22 @@ Admin actions never apply to other administrators, including the admin themselve
 
 ### Data storage
 
-There is no database server. Everything (locks, accounts, sessions and usage) lives in **one JSON file**, `MELLON_DATA` (default `data/locks.json`, or `/data/mellon.json` in Docker and on Fly).
+There is no database server. The store (`src/store.js`) has two interchangeable backends holding the same data: locks, accounts, sessions and usage.
+
+**JSON file** (default: local, Docker, Fly). `MELLON_DATA`, default `data/locks.json`, or `/data/mellon.json` in Docker and on Fly.
 
 - The server keeps the data in memory and rewrites the file atomically (write a temporary file, then rename) on every change. Usage counters are batched and saved every couple of seconds, and on shutdown.
-- Payloads and identity rules are encrypted with AES-256-GCM when `MELLON_SECRET_KEY` is set. Owner and session tokens are stored only as SHA-256 hashes. The file is created with mode `0600`.
 - If another process changes the file (the admin CLI), the server notices the new modification time and reloads.
 - Version 1 files, which held only locks, are upgraded automatically.
+- **One server process per data file.** You can't run several replicas against it.
 
-That makes it simple and dependency-free, but it means **one server process per data file**. You can't run several replicas against it. Back up the file and your `MELLON_SECRET_KEY` together; one is useless without the other. To scale beyond one instance, `src/store.js` is the only module to replace, for example with SQLite or Postgres.
+**Redis** (Vercel, or anywhere you set the variables). This is used whenever `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`, or Vercel's `KV_REST_API_URL`/`KV_REST_API_TOKEN`, are set. It talks to Upstash's REST API with plain `fetch`, so there are still no dependencies.
+
+- Each collection is a Redis hash (`mellon:locks`, `mellon:accounts`, `mellon:sessions`) of id → JSON record. Set `MELLON_REDIS_PREFIX` to share one database between deployments.
+- Every API request loads the current data first, then writes back only the records it changed. That lets any number of serverless instances share state.
+- Two requests that change the *same* record at the same moment (two attempts on one lock in the same instant) can overwrite each other, and the later write wins. That's fine for a demo, not for a ledger.
+
+Both backends encrypt payloads and identity rules with AES-256-GCM when `MELLON_SECRET_KEY` is set, and store owner and session tokens only as SHA-256 hashes. Back up your data and `MELLON_SECRET_KEY` together; one is useless without the other.
 
 ### Deployment
 
@@ -331,6 +339,29 @@ scripts/fly-admin.sh my-mellon grant <username>
 `fly-deploy.sh` is safe to re-run. On the first run it creates the app, a 1 GB `mellon_data` volume and a random `MELLON_SECRET_KEY`. It prints the key once, so save it. Then it deploys a single machine using `fly.toml`. The machine stops when idle and starts on the next request. Because storage is a single file, keep it at **one machine**.
 
 To deploy automatically from GitHub, set a `FLY_API_TOKEN` secret (`fly tokens create deploy`) and a `FLY_APP` variable. `.github/workflows/fly-deploy.yml` then deploys `main` whenever CI passes, or when you run it manually.
+
+**Vercel**
+
+Vercel serves `public/` from its CDN and runs the API as a serverless function (`api/index.js`, routed by `vercel.json`). Functions have no persistent disk, so a Vercel deployment needs Redis.
+
+```sh
+vercel login
+TYPESAFE_API_KEY=... scripts/vercel-deploy.sh my-mellon
+scripts/vercel-admin.sh my-mellon grant <username>
+```
+
+`vercel-deploy.sh` is safe to re-run. It links the project and makes sure Redis is configured:
+
+- In an interactive terminal it runs `vercel integration add upstash` to install Upstash Redis from the Vercel Marketplace.
+- Alternatively, pass an existing database with `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`.
+
+It then generates `MELLON_SECRET_KEY` as a sensitive variable on the first run (it prints the key once, so save it), sets `TYPESAFE_API_KEY` if you provide it, and deploys to production. All values reach the Vercel CLI through stdin, never command-line arguments. Without Redis it refuses to deploy unless you set `ALLOW_EPHEMERAL=1`. In that case data lives in the function's `/tmp` and vanishes between requests, and `/api/status` reports `"persistent": false`.
+
+`vercel-admin.sh` pulls the project's Redis credentials into a temporary file and runs the admin CLI against Redis from your machine. That's the Vercel equivalent of `fly ssh`.
+
+To deploy automatically from GitHub, add `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` secrets (the IDs are in `.vercel/project.json` after the first deploy). `.github/workflows/vercel-deploy.yml` then builds and deploys `main` whenever CI passes.
+
+On Vercel, the rate limits (attempts and sign-ins per minute) are kept in each function instance's memory, so they are per instance rather than global.
 
 ### Security properties
 
@@ -373,6 +404,9 @@ GitHub Actions has two workflows:
 | `MELLON_SECRET_KEY` | unset → secrets stored in plaintext       |
 | `MELLON_DATA`       | `data/locks.json`                         |
 | `PORT`              | `3000` (`8080` in Docker/Fly)             |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | unset → file storage. Set both to use Redis (Upstash REST) |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | same as above, under the names Vercel's Marketplace Redis uses |
+| `MELLON_REDIS_PREFIX` | `mellon` (key prefix in Redis) |
 | `MELLON_RUN_AS_UID` / `MELLON_RUN_AS_GID` | set by the Docker image: drop root to this user after fixing volume ownership; unset elsewhere |
 
 ## License

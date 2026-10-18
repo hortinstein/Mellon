@@ -6,6 +6,7 @@
 # Optional environment:
 #   TYPESAFE_API_KEY   set/update the Jev key (otherwise the mock judge runs)
 #   MELLON_SECRET_KEY  use this encryption key on first deploy instead of generating one
+# Secrets go to flyctl on stdin (secrets import), never as command-line arguments.
 set -euo pipefail
 
 APP="${1:-${FLY_APP:-}}"
@@ -31,7 +32,7 @@ fi
 if ! "$FLY" secrets list --app "$APP" --json | grep -q '"MELLON_SECRET_KEY"'; then
   KEY="${MELLON_SECRET_KEY:-$(openssl rand -base64 32)}"
   echo "==> Setting MELLON_SECRET_KEY"
-  "$FLY" secrets set --app "$APP" --stage MELLON_SECRET_KEY="$KEY" >/dev/null
+  printf 'MELLON_SECRET_KEY=%s\n' "$KEY" | "$FLY" secrets import --app "$APP" --stage >/dev/null
   if [ -z "${MELLON_SECRET_KEY:-}" ]; then
     echo
     echo "    Generated MELLON_SECRET_KEY. Fly secrets can't be read back, so save it now:"
@@ -43,7 +44,7 @@ fi
 
 if [ -n "${TYPESAFE_API_KEY:-}" ]; then
   echo "==> Setting TYPESAFE_API_KEY"
-  "$FLY" secrets set --app "$APP" --stage TYPESAFE_API_KEY="$TYPESAFE_API_KEY" >/dev/null
+  printf 'TYPESAFE_API_KEY=%s\n' "$TYPESAFE_API_KEY" | "$FLY" secrets import --app "$APP" --stage >/dev/null
 fi
 
 echo "==> Deploying"
