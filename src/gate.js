@@ -94,7 +94,21 @@ export function decide(answers, policy = {}) {
       op: '<=',
     },
   ];
-  return { granted: checks.every((x) => x.pass), checks };
+  return { granted: checks.every((x) => x.pass), checks, policy: p };
+}
+
+// One sentence an owner can read to see why an attempt passed or failed.
+export function explain({ granted, checks }) {
+  const describe = (c) => {
+    if (typeof c.value !== 'number') return `${c.name}: no answer from the judge`;
+    const v = c.value.toFixed(2);
+    if (c.name === 'decision') return c.pass ? `Jev chose grant (p=${v})` : `Jev chose deny (p(grant)=${v})`;
+    if (c.op === '>=') return `${c.name} ${v} ${c.pass ? 'meets' : 'below'} the ${c.threshold} minimum`;
+    return `${c.name} ${v} ${c.pass ? 'within' : 'above'} the ${c.threshold} limit`;
+  };
+  if (granted) return `Granted: all ${checks.length} checks passed. ${checks.map(describe).join('; ')}.`;
+  const failed = checks.filter((c) => !c.pass);
+  return `Denied: ${failed.length} of ${checks.length} checks failed. ${failed.map(describe).join('; ')}.`;
 }
 
 export async function evaluate(jev, lock, input) {

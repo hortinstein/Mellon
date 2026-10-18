@@ -41,9 +41,16 @@ echo "ok  admin flag only via the CLI"
 docker exec "$NAME" grep -q osprey /data/mellon.json && fail "identity rules stored in plaintext"
 echo "ok  unprivileged, data encrypted at rest"
 
+LOCK=$(curl -fs -X POST "$URL/api/locks" -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
+  -d '{"name":"Smoke","rules":"Requester must say the password mellon","secret":"s"}' | json lock.id)
+curl -fs -X POST "$URL/api/locks/$LOCK/attempt" -H 'Content-Type: application/json' -d '{"input":"Requester says: password mellon"}' >/dev/null
+[ "$(docker exec "$NAME" stat -c %U "/data/attempts/$LOCK.jsonl")" = "node" ] || fail "attempt log not owned by node"
+echo "ok  attempt log written"
+
 docker restart "$NAME" >/dev/null
 wait_up
 [ "$(code)" = "200" ] || fail "data or session lost on restart"
+[ "$(curl -fs "$URL/api/locks/$LOCK/attempts" -H "Authorization: Bearer $TOKEN" | json total)" = "1" ] || fail "attempt log lost on restart"
 echo "ok  data persists across restarts"
 
 docker stop -t 10 "$NAME" >/dev/null

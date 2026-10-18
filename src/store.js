@@ -10,11 +10,17 @@
 //    no persistent disk. Each request calls sync() to load the current data and
 //    commit() to write back only the records it changed.
 import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { createRedisBackend } from './redis.js';
 
-const MAX_ATTEMPTS_KEPT = 50;
+// Attempt logs live outside the lock records (a JSON-lines file per lock, or a
+// Redis list per lock) and are only read when someone views them. Every attempt
+// is kept unless MELLON_ATTEMPT_LOG_MAX caps the entries kept per lock.
+const LOG_MAX = Math.max(0, Number(process.env.MELLON_ATTEMPT_LOG_MAX) || 0);
+const OUTCOMES = ['granted', 'denied', 'error', 'rate_limited'];
+const zeroCounts = () => ({ attempts: 0, granted: 0, denied: 0, errors: 0, rateLimited: 0, lastAttemptAt: null });
+const outcomeOf = (e) => e.outcome ?? (e.error ? 'error' : e.granted ? 'granted' : 'denied');
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const sha256 = (s) => createHash('sha256').update(s).digest();
 const sha256hex = (s) => sha256(s).toString('hex');
@@ -39,6 +45,9 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
   let seenMtime = redis ? null : mtimeOf(file);
   let usageTimer = null;
   const dirty = new Set(); // "collection\u0000id" pairs changed since the last commit
+  const pendingLog = []; // Redis: attempt-log operations waiting for commit()
+  const logDir = redis ? null : join(dirname(file), 'attempts');
+  const logPath = (id) => join(logDir, `${id}.jsonl`);
 
   const mark = (collection, id) => dirty.add(`${collection}\u0000${id}`);
 
@@ -68,7 +77,57 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
     if (m !== seenMtime) {
       db = load(file);
       seenMtime = m;
+      if (migrate()) save();
     }
+  };
+
+  const countsOf = (lock) => (lock.counts ??= zeroCounts());
+
+  const bump = (lock, entry) => {
+    const c = countsOf(lock);
+    const outcome = outcomeOf(entry);
+    if (outcome === 'rate_limited') c.rateLimited += 1;
+    else {
+      c.attempts += 1;
+      if (outcome === 'granted') c.granted += 1;
+      else c.denied += 1;
+      if (outcome === 'error') c.errors += 1;
+    }
+    c.lastAttemptAt = entry.at;
+  };
+
+  const appendLog = (id, entries) => {
+    if (redis) {
+      for (const entry of entries) pendingLog.push({ op: 'push', lockId: id, entry });
+      return;
+    }
+    mkdirSync(logDir, { recursive: true });
+    appendFileSync(logPath(id), entries.map((e) => `${JSON.stringify(e)}\n`).join(''), { mode: 0o600 });
+    if (LOG_MAX) {
+      const lines = readFileSync(logPath(id), 'utf8').split('\n').filter(Boolean);
+      if (lines.length > LOG_MAX * 1.1) writeFileSync(logPath(id), `${lines.slice(-LOG_MAX).join('\n')}\n`, { mode: 0o600 });
+    }
+  };
+
+  const deleteLog = (id) => {
+    if (redis) pendingLog.push({ op: 'del', lockId: id });
+    else rmSync(logPath(id), { force: true });
+  };
+
+  // Older data embedded the last 50 attempts in each lock: move them to the log.
+  const migrate = () => {
+    let changed = false;
+    for (const lock of Object.values(db.locks)) {
+      if (!Array.isArray(lock.attempts)) continue;
+      const oldestFirst = lock.attempts.slice().reverse().map((e) => ({ ...e, outcome: outcomeOf(e) }));
+      delete lock.attempts;
+      lock.counts = zeroCounts();
+      for (const e of oldestFirst) bump(lock, e);
+      if (oldestFirst.length) appendLog(lock.id, oldestFirst);
+      mark('locks', lock.id);
+      changed = true;
+    }
+    return changed;
   };
 
   const usageOf = (account) => (account.usage ??= freshUsage());
@@ -90,9 +149,9 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
     return Buffer.concat([d.update(Buffer.from(sealed.data, 'base64')), d.final()]).toString('utf8');
   };
 
-  const view = ({ id, name, description, rules, policy, createdAt, attempts, ownerAccountId }) => ({
+  const view = ({ id, name, description, rules, policy, createdAt, counts, ownerAccountId }) => ({
     id, name, description, rules, policy, createdAt,
-    attemptCount: attempts.length,
+    attemptCount: counts?.attempts ?? 0,
     owner: (ownerAccountId && db.accounts[ownerAccountId]?.username) || null,
   });
 
@@ -105,6 +164,8 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
       if (redis) {
         db = await redis.load();
         dirty.clear();
+        pendingLog.length = 0;
+        migrate();
       }
     },
 
@@ -112,13 +173,14 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
     async commit() {
       if (!redis) return;
       pruneSessions();
-      if (!dirty.size) return;
+      if (!dirty.size && !pendingLog.length) return;
       const changes = [...dirty].map((k) => {
         const [collection, id] = k.split('\u0000');
         return { collection, id, value: db[collection][id] ?? null };
       });
+      const logOps = pendingLog.splice(0);
       dirty.clear();
-      await redis.save(changes);
+      await redis.save(changes, logOps, LOG_MAX);
     },
 
     /* Locks */
@@ -136,7 +198,7 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
         ownerHash: sha256hex(ownerToken),
         ownerAccountId,
         createdAt: new Date(now()).toISOString(),
-        attempts: [],
+        counts: zeroCounts(),
       };
       mark('locks', id);
       save();
@@ -150,9 +212,9 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
 
     // Aggregate counts only: no inputs, verdict details or lock ids.
     stats() {
-      const all = Object.values(db.locks).flatMap((l) => l.attempts);
-      const granted = all.filter((a) => a.granted).length;
-      return { locks: Object.keys(db.locks).length, attempts: all.length, granted, denied: all.length - granted, accounts: Object.keys(db.accounts).length };
+      const t = zeroCounts();
+      for (const l of Object.values(db.locks)) for (const k of ['attempts', 'granted', 'denied']) t[k] += countsOf(l)[k];
+      return { locks: Object.keys(db.locks).length, attempts: t.attempts, granted: t.granted, denied: t.denied, accounts: Object.keys(db.accounts).length };
     },
     revealSecret: (id) => open(db.locks[id].secret),
 
@@ -170,16 +232,42 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
       return Boolean(accountId && lock.ownerAccountId === accountId) || this.isOwner(id, ownerToken);
     },
 
+    // Every attempt, whatever its outcome, is appended to the lock's log.
     recordAttempt(id, attempt) {
       const lock = db.locks[id];
-      lock.attempts.unshift({ at: new Date(now()).toISOString(), ...attempt });
-      lock.attempts.length = Math.min(lock.attempts.length, MAX_ATTEMPTS_KEPT);
+      const entry = { at: new Date(now()).toISOString(), ...attempt };
+      entry.outcome = outcomeOf(entry);
+      bump(lock, entry);
+      appendLog(id, [entry]);
       mark('locks', id);
       save();
     },
 
+    counts: (id) => ({ ...zeroCounts(), ...db.locks[id]?.counts }),
+
+    // Newest first. outcome filters to one of OUTCOMES; cursor is an offset.
+    async attemptLog(id, { limit = 25, cursor = 0, outcome } = {}) {
+      limit = Math.min(Math.max(1, Number(limit) || 25), 200);
+      cursor = Math.max(0, Number(cursor) || 0);
+      if (outcome && !OUTCOMES.includes(outcome)) outcome = undefined;
+      let entries;
+      let total;
+      if (redis && !outcome) {
+        ({ items: entries, total } = await redis.readLog(id, cursor, cursor + limit - 1));
+      } else {
+        let all;
+        if (redis) all = (await redis.readLog(id, 0, -1)).items;
+        else all = existsSync(logPath(id)) ? readFileSync(logPath(id), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).reverse() : [];
+        if (outcome) all = all.filter((e) => outcomeOf(e) === outcome);
+        total = all.length;
+        entries = all.slice(cursor, cursor + limit);
+      }
+      return { entries, total, nextCursor: cursor + limit < total ? cursor + limit : null };
+    },
+
     remove(id) {
       delete db.locks[id];
+      deleteLog(id);
       mark('locks', id);
       save();
     },
@@ -279,7 +367,7 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
     // Removes the account, its sessions and every lock it owns.
     deleteAccount(accountId) {
       const locks = Object.values(db.locks).filter((l) => l.ownerAccountId === accountId);
-      for (const l of locks) { delete db.locks[l.id]; mark('locks', l.id); }
+      for (const l of locks) { delete db.locks[l.id]; deleteLog(l.id); mark('locks', l.id); }
       for (const [hash, s] of Object.entries(db.sessions)) if (s.accountId === accountId) { delete db.sessions[hash]; mark('sessions', hash); }
       delete db.accounts[accountId];
       mark('accounts', accountId);
@@ -291,17 +379,16 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
       const t = now();
       return Object.values(db.accounts).map((account) => {
         const locks = Object.values(db.locks).filter((l) => l.ownerAccountId === account.id);
-        const attempts = locks.flatMap((l) => l.attempts);
-        const granted = attempts.filter((a) => a.granted).length;
+        const sum = (k) => locks.reduce((n, l) => n + countsOf(l)[k], 0);
         return {
           username: account.username,
           createdAt: account.createdAt,
           isAdmin: Boolean(account.isAdmin),
           disabled: Boolean(account.disabled),
           locks: locks.length,
-          attempts: attempts.length,
-          granted,
-          denied: attempts.length - granted,
+          attempts: sum('attempts'),
+          granted: sum('granted'),
+          denied: sum('denied'),
           activeSessions: Object.values(db.sessions).filter((s) => s.accountId === account.id && s.expiresAt > t).length,
           ...freshUsage(),
           ...account.usage,
@@ -313,6 +400,8 @@ export function createStore(target, { secretKey = process.env.MELLON_SECRET_KEY,
       if (usageTimer) save();
     },
   };
+
+  if (!redis && migrate()) save();
 
   // Every call first picks up external edits to the file (file backend).
   for (const [name, fn] of Object.entries(api)) {

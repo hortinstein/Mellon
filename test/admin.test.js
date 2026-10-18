@@ -124,7 +124,9 @@ test('an admin can see usage across accounts and control them', async () => {
     assert.deepEqual(detail.body.locks.map((l) => l.id), [lock.id]);
 
     // Admins can read and delete any lock.
-    assert.equal((await call(`/api/locks/${lock.id}/attempts`, { headers: bearer(rootToken) })).body.length, 2);
+    const log = (await call(`/api/locks/${lock.id}/attempts`, { headers: bearer(rootToken) })).body;
+    assert.equal(log.entries.length, 2);
+    assert.deepEqual([log.summary.granted, log.summary.denied], [1, 1]);
 
     // Disable: sessions die, sign-in is refused, re-enable works.
     assert.equal((await call('/api/admin/accounts/dana/disable', { method: 'POST', body: { disabled: 'yes' }, headers: bearer(rootToken) })).status, 400);

@@ -164,7 +164,7 @@ Every capability below ships today.
 | **Kinetic Rate Limiting** | No more than 10 attempts per minute per IP per lock. |
 | **Legacy Cryptographic Compatibility Layer** | Secrets at rest are encrypted with AES-256-GCM when `MELLON_SECRET_KEY` is set. We kept deterministic math for compliance reasons and do not wish to discuss it. |
 | **Command Authority Tokens** | Lock owners get a token, which is stored only as a SHA-256 hash. It unlocks the attempt log and deletion. |
-| **After-Action Reporting** | The most recent 50 entry attempts per lock are kept for review, newest first. |
+| **After-Action Reporting** | Every attempt on a lock is logged, granted or not, with a plain-English reason, each check against its threshold, Jev's raw answers, model, latency, and who asked from where. Owners get a filterable activity log. |
 | **Situational Awareness Suite** | A live radar of provisioned locks, platform-wide counters, a scroll-linked vigilance meter, and an engagement envelope chart of each session's attempts. All animation is disabled for users who prefer reduced motion. |
 | **DDIL Mode** | With no API key, Mellon falls back to an offline keyword judge that denies nearly everything. Unmatched security. Limited utility. |
 | **Zero-Dependency Runtime** | No runtime npm packages and no supply chain to attack. Playwright is used for testing only, and we try not to think about it. |
@@ -173,7 +173,7 @@ Every capability below ships today.
 | **Command Authority Console** | `/admin` shows every account's usage (locks, attempts, sign-ins, API calls, sessions, last seen) and can disable accounts, revoke sessions, read any lock's log, and delete accounts or locks. The admin flag lives only in the database and is set from the server's command line, never through the API. |
 | **Deploy Anywhere** | A small Docker image that runs unprivileged, a docker-compose file, Fly.io scripts and config, and a Vercel deployment backed by Upstash Redis, with CI that smoke-tests the image. |
 | **Developer API** | A documented JSON API at `/api.html`, with a quickstart in curl, JavaScript and Python, integration recipes and a live Try-it console. |
-| **Continuous Assurance Pipeline** | 67 unit and API tests, 10 browser tests (including a reduced-motion check), a Docker smoke test, and a weekly live check against the real model in GitHub Actions. |
+| **Continuous Assurance Pipeline** | 73 unit and API tests, 10 browser tests (including a reduced-motion check), a Docker smoke test, and a weekly live check against the real model in GitHub Actions. |
 
 ## Roadmap
 
@@ -274,6 +274,21 @@ Open `/api.html` (also `/api` or `/docs`) on a running server for the full refer
 | `GET` / `DELETE` | `/api/locks/:id/attempts`, `/api/locks/:id` | owner token or owning account |
 | `GET` | `/api/status`, `/api/stats` | — |
 
+### Attempt logs (why it passed)
+
+Every attempt on a lock is logged, whatever the outcome: **granted**, **denied**, **error** (the judge couldn't be reached, so access was denied), and **rate-limited**. Rate-limited bursts are logged once per minute per address, so flooding a lock can't flood its log. Each entry records:
+
+- the statement, and a plain-English **reason**, for example *"Denied: 1 of 4 checks failed. manipulation 0.92 above the 0.3 limit."*;
+- every check with its value and threshold, the thresholds in force at that moment, and Jev's raw answers;
+- the model, whether it was the mock judge, and how long the judge took;
+- the requester's username if they were signed in, and their address.
+
+When you open a lock you own, its activity log opens by itself. It shows totals and pass rate, filters by outcome, and an expandable **Why** on each entry. Anonymous locks show the same log with their owner token, and admins can read any lock's log. Through the API it's `GET /api/locks/:id/attempts?limit=&cursor=&outcome=`.
+
+Logs are stored outside the lock records, as a JSON-lines file per lock (`attempts/<lockId>.jsonl` beside the data file) or a Redis list per lock. They're read only when someone opens them, so keeping everything doesn't slow down other requests, and simultaneous attempts on one lock never lose entries. Everything is kept unless you set `MELLON_ATTEMPT_LOG_MAX` to cap the entries per lock; the counters still count every attempt. Locks from older versions, which embedded their last 50 attempts, are migrated automatically.
+
+Client addresses come from the connection itself. Forwarded headers are trusted only on Fly or Vercel, whose proxies set them, or when `MELLON_TRUST_PROXY=1`, so a client can't spoof its address. This also keys the rate limits.
+
 ### Administration
 
 Admins are ordinary accounts with an `isAdmin` flag set in the database. **No API endpoint can set or clear that flag.** Sign-up ignores it, and the admin endpoints only read it. An operator sets it with the CLI on the server:
@@ -371,6 +386,7 @@ On Vercel, the rate limits (attempts and sign-ins per minute) are kept in each f
 - **It fails closed.** API errors, timeouts and missing answers all mean "denied".
 - Requests are rate-limited to 10 attempts per minute per IP per lock.
 - Owner tokens are stored as hashes. With `MELLON_SECRET_KEY` set, secrets are encrypted at rest.
+- Attempt logs hold the statements people typed and their addresses in plain text, so treat the data directory (or Redis) as sensitive.
 - The owner token lets you view the attempt log and delete the lock.
 
 ### Honest caveats
@@ -409,6 +425,8 @@ GitHub Actions has two workflows:
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | unset → file storage. Set both to use Redis (Upstash REST) |
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | same as above, under the names Vercel's Marketplace Redis uses |
 | `MELLON_REDIS_PREFIX` | `mellon` (key prefix in Redis) |
+| `MELLON_ATTEMPT_LOG_MAX` | unset → keep every attempt. Otherwise the number of log entries kept per lock |
+| `MELLON_TRUST_PROXY` | unset. Set to `1` behind your own reverse proxy to use `X-Forwarded-For` (automatic on Fly and Vercel) |
 | `MELLON_RUN_AS_UID` / `MELLON_RUN_AS_GID` | set by the Docker image: drop root to this user after fixing volume ownership; unset elsewhere |
 
 ## License

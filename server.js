@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createJevClient } from './src/jev.js';
-import { DEFAULT_POLICY, evaluate } from './src/gate.js';
+import { DEFAULT_POLICY, evaluate, explain } from './src/gate.js';
 import { backendFromEnv, createStore } from './src/store.js';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
@@ -20,12 +20,13 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
 export function createApp({ store, jev }) {
   const hits = new Map(); // rate-limit key -> timestamps of recent attempts
 
+  // Returns how far over the limit this request is (0 = allowed).
   const rateLimited = (key, limit = ATTEMPTS_PER_MINUTE) => {
     const now = Date.now();
     const recent = (hits.get(key) || []).filter((t) => now - t < 60_000);
     recent.push(now);
     hits.set(key, recent);
-    return recent.length > limit;
+    return Math.max(0, recent.length - limit);
   };
 
   // Resolves `Authorization: Bearer <session token>`. A header that is present
@@ -101,30 +102,58 @@ export function createApp({ store, jev }) {
     ['POST', /^\/api\/locks\/(\w+)\/attempt$/, async (req, [id]) => {
       const lock = store.get(id);
       if (!lock) return [404, { error: 'No such lock' }];
-      if (rateLimited(`${req.socket.remoteAddress}:${id}`)) return [429, { error: 'Too many attempts; wait a minute.' }];
+      const ip = clientIp(req);
+      const requester = auth(req).account?.username ?? null;
+      const over = rateLimited(`${ip}:${id}`);
+      if (over) {
+        // Logged once per minute per address, so flooding can't flood the log.
+        if (over === 1) store.recordAttempt(id, { outcome: 'rate_limited', granted: false, input: null, reason: `Rate limited: more than ${ATTEMPTS_PER_MINUTE} attempts in a minute from this address.`, requester, ip });
+        return [429, { error: 'Too many attempts; wait a minute.' }];
+      }
       const body = await readJson(req);
       const err = validate(body, ['input']);
       if (err) return [400, { error: err }];
 
+      const started = Date.now();
       let result;
       try {
         result = await evaluate(jev, lock, body.input);
       } catch (e) {
         // Fail closed: an unreachable judge never opens the door.
         console.error(`[mellon] judge error on lock ${id}:`, e.message);
-        store.recordAttempt(id, { input: body.input, granted: false, error: e.message });
+        store.recordAttempt(id, {
+          outcome: 'error', granted: false, input: body.input, reason: `Denied: the judge could not be reached (${e.message}).`,
+          error: e.message, mode: jev.mode, model: jev.model, latencyMs: Date.now() - started, requester, ip,
+        });
         return [502, { granted: false, error: 'The gatekeeper could not reach a decision. Access denied.' }];
       }
 
-      store.recordAttempt(id, { input: body.input, granted: result.granted, checks: result.checks, mode: result.mode });
-      const response = { granted: result.granted, checks: result.checks, mode: result.mode, model: result.model, answers: result.answers };
+      // Everything an owner needs to see why this attempt passed or failed.
+      store.recordAttempt(id, {
+        outcome: result.granted ? 'granted' : 'denied',
+        granted: result.granted,
+        input: body.input,
+        reason: explain(result),
+        checks: result.checks,
+        policy: result.policy,
+        answers: summarizeAnswers(result.answers),
+        mode: result.mode,
+        model: result.model,
+        latencyMs: Date.now() - started,
+        requester,
+        ip,
+      });
+      const response = { granted: result.granted, reason: explain(result), checks: result.checks, mode: result.mode, model: result.model, answers: result.answers };
       if (result.granted) response.secret = store.revealSecret(id);
       return [200, response];
     }],
 
-    ['GET', /^\/api\/locks\/(\w+)\/attempts$/, (req, [id]) => {
+    ['GET', /^\/api\/locks\/(\w+)\/attempts$/, async (req, [id]) => {
       if (!store.canManage(id, manager(req))) return [403, { error: 'Owner token or owning account required' }];
-      return [200, store.get(id).attempts];
+      const q = new URL(req.url, 'http://x').searchParams;
+      const page = await store.attemptLog(id, { limit: q.get('limit'), cursor: q.get('cursor'), outcome: q.get('outcome') || undefined });
+      const lock = store.get(id);
+      return [200, { lock: { id, name: lock.name }, summary: store.counts(id), ...page }];
     }],
 
     ['DELETE', /^\/api\/locks\/(\w+)$/, (req, [id]) => {
@@ -142,7 +171,7 @@ export function createApp({ store, jev }) {
       const username = body.username.trim().toLowerCase();
       if (!USERNAME.test(username)) return [400, { error: 'Username must be 3-32 characters: a-z, 0-9, "_" or "-", starting with a letter or digit' }];
       if (body.rules.trim().length < MIN_IDENTITY_RULES) return [400, { error: `Identity rules must be at least ${MIN_IDENTITY_RULES} characters` }];
-      if (rateLimited(`${req.socket.remoteAddress}:signup`)) return [429, { error: 'Too many sign-ups; wait a minute.' }];
+      if (rateLimited(`${clientIp(req)}:signup`)) return [429, { error: 'Too many sign-ups; wait a minute.' }];
       const account = store.createAccount({ username, rules: body.rules.trim(), policy: ACCOUNT_POLICY });
       if (!account) return [409, { error: 'Username is taken' }];
       const session = store.createSession(account.id);
@@ -154,7 +183,7 @@ export function createApp({ store, jev }) {
       const err = validate(body, ['username', 'statement']);
       if (err) return [400, { error: err }];
       const username = body.username.trim().toLowerCase();
-      if (rateLimited(`${req.socket.remoteAddress}:signin:${username}`, SIGNINS_PER_MINUTE)) return [429, { error: 'Too many sign-in attempts; wait a minute.' }];
+      if (rateLimited(`${clientIp(req)}:signin:${username}`, SIGNINS_PER_MINUTE)) return [429, { error: 'Too many sign-in attempts; wait a minute.' }];
       const account = store.accountByName(username);
       if (!account) return [404, { granted: false, error: 'No such account' }];
       if (account.disabled) return [403, { granted: false, error: 'This account has been disabled by an administrator' }];
@@ -264,6 +293,28 @@ export function createApp({ store, jev }) {
       return send(res, 500, { error: 'Internal error' });
     }
   };
+}
+
+// Behind Fly's or Vercel's proxy every request arrives from the proxy, so use the
+// address the platform forwards. Elsewhere the socket address is the client
+// (forwarded headers could be forged); set MELLON_TRUST_PROXY=1 behind your own proxy.
+function clientIp(req) {
+  const trusted = process.env.MELLON_TRUST_PROXY === '1' || process.env.FLY_APP_NAME || process.env.VERCEL;
+  if (trusted) {
+    const forwarded = req.headers['fly-client-ip'] || req.headers['x-real-ip'] || String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (forwarded) return forwarded;
+  }
+  return req.socket.remoteAddress || 'unknown';
+}
+
+// Jev's raw answers minus bulky fields (score legends), for the attempt log.
+function summarizeAnswers(answers = {}) {
+  const out = {};
+  for (const [k, v] of Object.entries(answers)) {
+    const { legend, ...rest } = v || {};
+    out[k] = rest;
+  }
+  return out;
 }
 
 function validate(body, required) {
