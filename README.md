@@ -148,6 +148,8 @@ Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A q
 </tr>
 </table>
 
+**Every click path**, step by step with the next click highlighted, is in [docs/clickpaths](docs/clickpaths/README.md). Regenerate it with `npm run clickpaths`.
+
 ## Capabilities
 
 Every capability below ships today.
