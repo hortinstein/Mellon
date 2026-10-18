@@ -4,7 +4,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createJevClient } from './src/jev.js';
 import { DEFAULT_POLICY, evaluate } from './src/gate.js';
-import { createStore } from './src/store.js';
+import { backendFromEnv, createStore } from './src/store.js';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PUBLIC = join(ROOT, 'public');
@@ -61,7 +61,16 @@ export function createApp({ store, jev }) {
   };
 
   const routes = [
-    ['GET', /^\/api\/status$/, () => [200, { mode: jev.mode, model: jev.model, encrypted: store.encrypted, defaultPolicy: DEFAULT_POLICY, accountPolicy: ACCOUNT_POLICY }]],
+    ['GET', /^\/api\/status$/, () => [200, {
+      mode: jev.mode,
+      model: jev.model,
+      encrypted: store.encrypted,
+      storage: store.storage,
+      // A file in a serverless function's /tmp disappears between invocations.
+      persistent: !(process.env.VERCEL && store.storage === 'file'),
+      defaultPolicy: DEFAULT_POLICY,
+      accountPolicy: ACCOUNT_POLICY,
+    }]],
 
     ['GET', /^\/api\/stats$/, () => [200, store.stats()]],
 
@@ -238,7 +247,13 @@ export function createApp({ store, jev }) {
       if (pathname.startsWith('/api/')) {
         for (const [method, pattern, fn] of routes) {
           const m = pathname.match(pattern);
-          if (m && req.method === method) return send(res, ...(await fn(req, m.slice(1))));
+          if (!m || req.method !== method) continue;
+          // Redis-backed deployments load fresh data per request and write back
+          // only what changed; for the file backend both calls do nothing.
+          await store.sync();
+          const result = await fn(req, m.slice(1));
+          await store.commit();
+          return send(res, ...result);
         }
         return send(res, 404, { error: 'Not found' });
       }
@@ -305,7 +320,7 @@ async function serveStatic(pathname, res) {
 }
 
 export function start() {
-  const store = createStore(process.env.MELLON_DATA || join(ROOT, 'data', 'locks.json'));
+  const store = createStore(backendFromEnv(process.env, join(ROOT, 'data', 'locks.json')));
   const jev = createJevClient();
   const port = Number(process.env.PORT) || 3000;
   const server = createServer(createApp({ store, jev }));
@@ -319,6 +334,7 @@ export function start() {
   server.listen(port, () => {
     console.log(`Mellon listening on http://localhost:${port}`);
     console.log(jev.mode === 'live' ? `Judge: TypeSafe Jev (${jev.model})` : 'Judge: MOCK heuristics (set TYPESAFE_API_KEY to use Jev)');
+    console.log(`Storage: ${store.storage === 'redis' ? 'Redis (Upstash REST)' : `file ${process.env.MELLON_DATA || 'data/locks.json'}`}`);
     if (!store.encrypted) console.log('Warning: secrets stored in plaintext (set MELLON_SECRET_KEY to encrypt at rest)');
   });
 }

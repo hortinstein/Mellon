@@ -224,3 +224,7 @@ data/
 node_modules/
 playwright-report/
 test-results/
+
+# Vercel CLI link + pulled env
+.vercel/
+.env.vercel
