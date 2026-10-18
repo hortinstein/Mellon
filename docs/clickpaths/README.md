@@ -179,33 +179,49 @@ Accounts are Mellons too: identity rules instead of a password, and every sign-i
 
 ![Accounts and Mellon sign-in step 5](05-accounts/05.png)
 
-**6.** As the owning account you can manage it without an owner token.
+**6.** As the owner, the lock's activity log opens by itself: every attempt, with why it passed or failed.
 
 ![Accounts and Mellon sign-in step 6](05-accounts/06.png)
 
-**7.** Sign out.
+**7.** Open "Why" on an entry…
 
 ![Accounts and Mellon sign-in step 7](05-accounts/07.png)
 
-**8.** Sign in with a vague statement…
+**8.** …for each check against its threshold, the thresholds in force and Jev's raw answers.
 
 ![Accounts and Mellon sign-in step 8](05-accounts/08.png)
 
-**9.** …sign-in DENIED: the statement does not satisfy the identity rules.
+**9.** Filter by outcome.
 
 ![Accounts and Mellon sign-in step 9](05-accounts/09.png)
 
-**10.** Prove it the way your rules say…
+**10.** Only granted attempts (none yet).
 
 ![Accounts and Mellon sign-in step 10](05-accounts/10.png)
 
-**11.** …GRANTED: a 7-day session is issued.
+**11.** Sign out.
 
 ![Accounts and Mellon sign-in step 11](05-accounts/11.png)
 
-**12.** Back in, with your locks listed.
+**12.** Sign in with a vague statement…
 
 ![Accounts and Mellon sign-in step 12](05-accounts/12.png)
+
+**13.** …sign-in DENIED: the statement does not satisfy the identity rules.
+
+![Accounts and Mellon sign-in step 13](05-accounts/13.png)
+
+**14.** Prove it the way your rules say…
+
+![Accounts and Mellon sign-in step 14](05-accounts/14.png)
+
+**15.** …GRANTED: a 7-day session is issued.
+
+![Accounts and Mellon sign-in step 15](05-accounts/15.png)
+
+**16.** Back in, with your locks listed.
+
+![Accounts and Mellon sign-in step 16](05-accounts/16.png)
 
 ## <a id="06-api-docs"></a>API documentation
 

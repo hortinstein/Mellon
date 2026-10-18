@@ -1,4 +1,5 @@
 import { classificationExample, sampleInputs } from './examples.js';
+import { renderAttemptLog } from './attemptlog.js';
 import { createCounters, createRadar, initScroll, reducedMotion, renderEnvelope, runSequence } from './fx.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -84,6 +85,10 @@ function openLock(lock) {
   const mine = session && lock.owner === session.username;
   $('#owner-note').classList.toggle('hidden', !mine);
   $('#owner-note').textContent = mine ? `You own this lock through @${session.username}. No owner token needed.` : '';
+  activity = null;
+  // Owners see the lock's activity straight away.
+  $('#owner').open = Boolean(mine);
+  if (mine) showActivity();
   $('#attempt-form').input.value = '';
   $('#sequence').classList.add('hidden');
   drawEnvelope();
@@ -325,6 +330,7 @@ $('#attempt-form').onsubmit = async (e) => {
     renderResult(r);
     recordPoint(r, input);
     radar.ping(r.granted);
+    activity?.refresh();
   } catch (err) {
     renderResult({ granted: false, error: err.message });
     radar.ping(false);
@@ -338,21 +344,15 @@ $('#attempt-form').onsubmit = async (e) => {
 
 const ownerHeaders = () => ({ 'X-Owner-Token': $('#owner-token').value.trim() });
 
-$('#show-log').onclick = async () => {
-  try {
-    const attempts = await api(`/api/locks/${current.id}/attempts`, { headers: ownerHeaders() });
-    const log = $('#log');
-    log.replaceChildren();
-    if (!attempts.length) log.append(el('p', { className: 'muted', textContent: 'No attempts yet.' }));
-    for (const a of attempts) {
-      log.append(el('div', { className: `log-entry ${a.granted ? 'granted' : 'denied'}` },
-        el('div', { className: 'muted', textContent: `${new Date(a.at).toLocaleString()} · ${a.granted ? 'granted' : 'denied'}${a.error ? ' · error' : ''}${a.mode === 'mock' ? ' · mock' : ''}` }),
-        el('div', { textContent: a.input })));
-    }
-  } catch (err) {
-    notify(err.message);
-  }
-};
+let activity = null;
+function showActivity() {
+  const id = current.id;
+  activity = renderAttemptLog($('#log'), {
+    load: (q) => api(`/api/locks/${id}/attempts?${new URLSearchParams(q)}`, { headers: ownerHeaders() }),
+    onError: (err) => { notify(err.message); $('#log').replaceChildren(); activity = null; },
+  });
+}
+$('#show-log').onclick = showActivity;
 
 $('#delete-lock').onclick = async () => {
   if (!confirm(`Delete "${current.name}" and its secret?`)) return;

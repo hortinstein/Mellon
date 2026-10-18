@@ -1,5 +1,6 @@
 // Admin console. Everything here is enforced by the server; this page only
 // renders what /api/admin/* returns for an account flagged isAdmin.
+import { renderAttemptLog } from './attemptlog.js';
 
 const $ = (sel) => document.querySelector(sel);
 const el = (tag, props = {}, ...children) => {
@@ -149,20 +150,11 @@ async function select(username) {
   }
 }
 
-async function showLog(lock) {
-  try {
-    const attempts = await api(`/api/locks/${lock.id}/attempts`);
-    const box = $('#detail-log');
-    box.replaceChildren(el('p', { className: 'eyebrow', textContent: `Attempt log: ${lock.name}` }));
-    if (!attempts.length) box.append(el('p', { className: 'muted', textContent: 'No attempts yet.' }));
-    for (const at of attempts) {
-      box.append(el('div', { className: `log-entry ${at.granted ? 'granted' : 'denied'}` },
-        el('div', { className: 'muted', textContent: `${new Date(at.at).toUTCString()} · ${at.granted ? 'granted' : 'denied'}${at.error ? ' · error' : ''}${at.mode === 'mock' ? ' · mock' : ''}` }),
-        el('div', { textContent: at.input })));
-    }
-  } catch (e) {
-    notify(e.message);
-  }
+function showLog(lock) {
+  const box = $('#detail-log');
+  const body = el('div');
+  box.replaceChildren(el('p', { className: 'eyebrow', textContent: `Attempt log: ${lock.name}` }), body);
+  renderAttemptLog(body, { load: (q) => api(`/api/locks/${lock.id}/attempts?${new URLSearchParams(q)}`), onError: (e) => notify(e.message) });
 }
 
 const act = async (fn, message) => {

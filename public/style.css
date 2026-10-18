@@ -481,3 +481,35 @@ th.num { text-align: right; }
 .admin-lock strong { font-weight: 500; color: var(--white); }
 button.small { padding: 7px 10px; font-size: 10px; }
 #detail-log { margin-top: 20px; }
+
+/* ---------- Attempt log (owner observability) ---------- */
+.log-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 18px 0 12px; font: 500 11px/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.log-stat b { color: var(--white); font-weight: 600; font-size: 13px; letter-spacing: 0; }
+.log-stat.grant b { color: var(--grant); }
+.log-stat.deny b { color: var(--deny); }
+.log-stat.warn b { color: var(--warn); }
+.log-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.log-filter::before { display: none; }
+.log-filter[aria-pressed="true"] { color: var(--white); border-color: var(--white); }
+.log-list { display: grid; gap: 10px; }
+.log-entry { margin: 0; padding: 12px 14px; }
+.log-entry.outcome-error, .log-entry.outcome-rate_limited { border-color: var(--warn); }
+.log-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.log-head .muted { font: 500 10.5px/1.4 var(--mono); letter-spacing: 0.04em; color: var(--dim); }
+.pill.granted { color: var(--grant); border-color: rgba(53, 208, 127, 0.45); }
+.pill.denied { color: var(--deny); border-color: rgba(255, 77, 79, 0.45); }
+.pill.error, .pill.rate_limited { color: var(--warn); border-color: rgba(255, 176, 32, 0.45); }
+.log-reason { margin: 10px 0 6px; color: var(--text); font-size: 13.5px; }
+.log-input { margin: 0 0 6px; padding: 6px 0 6px 12px; border-left: 2px solid var(--line-strong); color: var(--muted); font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+.log-why { margin: 6px 0 0; }
+.log-why summary { font-size: 10.5px; }
+.log-why[open] summary { margin-bottom: 10px; }
+.log-why .muted { font: 400 11.5px/1.5 var(--mono); color: var(--dim); margin: 8px 0; }
+table.log-checks { border-collapse: collapse; font: 400 12px/1.4 var(--mono); width: 100%; max-width: 520px; }
+table.log-checks th { text-align: left; color: var(--dim); font-weight: 500; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 12px 4px 0; border-bottom: 1px solid var(--line); }
+table.log-checks td { padding: 5px 12px 5px 0; border-bottom: 1px solid var(--line); color: var(--text); }
+table.log-checks td.pass { color: var(--grant); }
+table.log-checks td.fail { color: var(--deny); }
+table.log-checks tr.fail td:first-child { color: var(--deny); }
+.log-raw { font-size: 11px; max-height: 220px; overflow: auto; }
+.log-more { margin-top: 12px; }

@@ -16,6 +16,7 @@ const TOKEN = 'upstash-test-token';
 /* A fake Upstash REST endpoint: POST /pipeline with HGETALL / HSET / HDEL. */
 function fakeUpstash() {
   const hashes = new Map();
+  const lists = new Map();
   const log = [];
   let failNext = 0;
   const server = createServer(async (req, res) => {
@@ -31,12 +32,19 @@ function fakeUpstash() {
       if (cmd === 'HGETALL') return { result: [...h].flat() };
       if (cmd === 'HSET') { h.set(args[0], args[1]); return { result: 1 }; }
       if (cmd === 'HDEL') return { result: Number(h.delete(args[0])) };
+      const list = lists.get(key) ?? [];
+      lists.set(key, list);
+      if (cmd === 'LPUSH') { list.unshift(...args); return { result: list.length }; }
+      if (cmd === 'LTRIM') { const [a, b] = args.map(Number); lists.set(key, list.slice(a, b + 1)); return { result: 'OK' }; }
+      if (cmd === 'LRANGE') { const [a, b] = args.map(Number); return { result: list.slice(a, b === -1 ? undefined : b + 1) }; }
+      if (cmd === 'LLEN') return { result: list.length };
+      if (cmd === 'DEL') { const n = Number(lists.delete(key) | hashes.delete(key)); return { result: n }; }
       return { error: `ERR unknown command ${cmd}` };
     });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(results));
   });
-  return { server, hashes, log, failOnce: () => { failNext = 1; } };
+  return { server, hashes, lists, log, failOnce: () => { failNext = 1; } };
 }
 
 let upstash;
@@ -101,7 +109,8 @@ test('redis store: separate instances share data and write only changed records'
   await b.commit();
 
   await a.sync();
-  assert.equal(a.get(lock.id).attempts.length, 1);
+  assert.equal((await a.attemptLog(lock.id)).total, 1);
+  assert.equal((await a.attemptLog(lock.id)).entries[0].input, 'hi');
   a.deleteAccount(acct.id);
   await a.commit();
   await b.sync();
@@ -129,7 +138,7 @@ test('function: accounts, locks and admin work across instances via Redis', asyn
   const attempt = await call(1, `/api/locks/${id}/attempt`, { method: 'POST', body: { input: 'Requester says: password mellon' } });
   assert.equal(attempt.body.granted, true);
   assert.equal(attempt.body.secret, 'The doors open.');
-  assert.equal((await call(2, `/api/locks/${id}/attempts`, { headers: bearer(token) })).body.length, 1);
+  assert.equal((await call(2, `/api/locks/${id}/attempts`, { headers: bearer(token) })).body.entries.length, 1);
 
   // Admin: the CLI writes the flag straight to Redis; no endpoint can.
   assert.equal((await call(1, '/api/admin/overview', { headers: bearer(token) })).status, 403);
@@ -144,6 +153,21 @@ test('function: accounts, locks and admin work across instances via Redis', asyn
   // Sign-out on one instance is honoured by the other.
   assert.equal((await call(1, '/api/sessions', { method: 'DELETE', headers: bearer(token) })).status, 204);
   assert.equal((await call(2, '/api/me', { headers: bearer(token) })).status, 401);
+});
+
+test('redis: attempt logs are separate lists, and simultaneous attempts are all logged', async () => {
+  const created = await call(1, '/api/locks', { method: 'POST', body: { name: 'Busy', rules: 'Requester must say the password mellon', secret: 's' } });
+  const { lock, ownerToken } = created.body;
+  await Promise.all([1, 2, 1, 2, 1, 2].map((n, i) => call(n, `/api/locks/${lock.id}/attempt`, { method: 'POST', body: { input: `concurrent ${i}` } })));
+  assert.equal(upstash.lists.get(`mellon:attempts:${lock.id}`).length, 6, 'no entries lost to concurrent writes');
+  assert.ok(![...upstash.hashes.get('mellon:locks').values()].join().includes('concurrent'), 'logs are not inside lock records');
+  const log = await call(2, `/api/locks/${lock.id}/attempts?limit=4`, { headers: { 'X-Owner-Token': ownerToken } });
+  assert.equal(log.body.total, 6);
+  assert.equal(log.body.entries.length, 4);
+  assert.equal(log.body.nextCursor, 4);
+  assert.ok(log.body.entries.every((e) => e.reason && e.checks?.length === 4));
+  assert.equal((await call(1, `/api/locks/${lock.id}`, { method: 'DELETE', headers: { 'X-Owner-Token': ownerToken } })).status, 204);
+  assert.equal(upstash.lists.has(`mellon:attempts:${lock.id}`), false, 'deleting the lock deletes its log');
 });
 
 test('function: handles the rewritten /api/index?path= form', async () => {

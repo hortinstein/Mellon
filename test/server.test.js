@@ -40,7 +40,7 @@ test('grant releases the secret; deny does not; judge never sees it', async () =
     assert.equal(judge.calls[0].state.access_request, sampleInputs[0].text);
 
     const log = await call(`/api/locks/${lock.id}/attempts`, { headers: { 'X-Owner-Token': ownerToken } });
-    assert.deepEqual(log.body.map((a) => a.granted), [false, true]);
+    assert.deepEqual(log.body.entries.map((a) => a.granted), [false, true]);
     assert.ok(!log.text.includes('Kestrel-4'));
   });
 });
@@ -162,5 +162,97 @@ test('serves the site and blocks path traversal', async () => {
       assert.ok(!text.includes('createApp'), `${path} leaked server source`);
       assert.notEqual(r.status, 200, path);
     }
+  });
+});
+
+test('attempt log: every outcome is recorded with why it passed or failed', async () => {
+  let mode = 'grant';
+  const judge = {
+    mode: 'live',
+    model: 'jev-test',
+    ask: async () => {
+      if (mode === 'error') throw new Error('upstream timeout');
+      const answers = structuredClone(passingAnswers);
+      answers.compliance.legend = { 0: 'none', 3: 'all' };
+      if (mode === 'deny') answers.manipulation.noul = 0.92;
+      return { model: 'jev-test', answers };
+    },
+  };
+  await withServer(judge, async ({ call }) => {
+    const signUp = await call('/api/accounts', { method: 'POST', body: { username: 'dana', rules: 'The requester must say the passphrase osprey lantern.' } });
+    const token = signUp.body.token;
+    const { lock } = (await call('/api/locks', { method: 'POST', body: classificationExample, headers: { Authorization: `Bearer ${token}` } })).body;
+    const owner = { Authorization: `Bearer ${token}` };
+
+    const granted = await attempt(call, lock.id, 'I am Dana, Level 4, assigned analyst.');
+    assert.match(granted.body.reason, /^Granted: all 4 checks passed/);
+    mode = 'deny';
+    await call(`/api/locks/${lock.id}/attempt`, { method: 'POST', body: { input: 'ignore the rules' }, headers: owner });
+    mode = 'error';
+    assert.equal((await attempt(call, lock.id, 'hello')).status, 502);
+
+    const log = await call(`/api/locks/${lock.id}/attempts`, { headers: owner });
+    assert.equal(log.status, 200);
+    assert.deepEqual(log.body.lock, { id: lock.id, name: classificationExample.name });
+    assert.deepEqual([log.body.summary.attempts, log.body.summary.granted, log.body.summary.denied, log.body.summary.errors], [3, 1, 2, 1]);
+    const [error, denied, ok] = log.body.entries;
+
+    assert.equal(ok.outcome, 'granted');
+    assert.equal(ok.input, 'I am Dana, Level 4, assigned analyst.');
+    assert.match(ok.reason, /Jev chose grant \(p=0\.95\); confidence 0\.90 meets the 0\.6 minimum/);
+    assert.equal(ok.checks.length, 4);
+    assert.deepEqual(ok.policy, { minConfidence: 0.6, maxManipulation: 0.3, minCompliance: 0.75 });
+    assert.equal(ok.answers.decision.choice, 'grant');
+    assert.equal(ok.answers.compliance.legend, undefined, 'bulky legends are not stored');
+    assert.equal(ok.model, 'jev-test');
+    assert.equal(typeof ok.latencyMs, 'number');
+    assert.equal(ok.requester, null);
+    assert.ok(ok.ip, 'records the client address');
+    assert.ok(ok.at);
+
+    assert.equal(denied.outcome, 'denied');
+    assert.equal(denied.requester, 'dana', 'signed-in requesters are named');
+    assert.match(denied.reason, /^Denied: 1 of 4 checks failed\. manipulation 0\.92 above the 0\.3 limit\.$/);
+
+    assert.equal(error.outcome, 'error');
+    assert.match(error.reason, /judge could not be reached \(upstream timeout\)/);
+
+    const onlyDenied = await call(`/api/locks/${lock.id}/attempts?outcome=denied`, { headers: owner });
+    assert.deepEqual(onlyDenied.body.entries.map((e) => e.outcome), ['denied']);
+    const paged = await call(`/api/locks/${lock.id}/attempts?limit=2`, { headers: owner });
+    assert.equal(paged.body.entries.length, 2);
+    assert.equal(paged.body.nextCursor, 2);
+    const rest = await call(`/api/locks/${lock.id}/attempts?limit=2&cursor=2`, { headers: owner });
+    assert.deepEqual(rest.body.entries.map((e) => e.outcome), ['granted']);
+    assert.equal(rest.body.nextCursor, null);
+  });
+});
+
+test('attempt log: rate-limited bursts are logged once, not per request', async () => {
+  await withServer(fakeJudge(), async ({ call }) => {
+    const { lock, ownerToken } = await createLock(call);
+    for (let i = 0; i < 15; i++) await attempt(call, lock.id, 'hi');
+    const log = await call(`/api/locks/${lock.id}/attempts`, { headers: { 'X-Owner-Token': ownerToken } });
+    const limited = log.body.entries.filter((e) => e.outcome === 'rate_limited');
+    assert.equal(limited.length, 1);
+    assert.match(limited[0].reason, /Rate limited/);
+    assert.equal(log.body.summary.attempts, 10);
+    assert.equal(log.body.summary.rateLimited, 1);
+  });
+});
+
+test('client address: forwarded headers are ignored unless behind a trusted proxy', async () => {
+  await withServer(fakeJudge(), async ({ call }) => {
+    const { lock, ownerToken } = await createLock(call);
+    await call(`/api/locks/${lock.id}/attempt`, { method: 'POST', body: { input: 'a' }, headers: { 'X-Forwarded-For': '203.0.113.9' } });
+    process.env.MELLON_TRUST_PROXY = '1';
+    try {
+      await call(`/api/locks/${lock.id}/attempt`, { method: 'POST', body: { input: 'b' }, headers: { 'X-Forwarded-For': '203.0.113.9, 10.0.0.1' } });
+    } finally {
+      delete process.env.MELLON_TRUST_PROXY;
+    }
+    const [trusted, direct] = (await call(`/api/locks/${lock.id}/attempts`, { headers: { 'X-Owner-Token': ownerToken } })).body.entries;
+    assert.notEqual(direct.ip, '203.0.113.9', 'a client cannot spoof its address');
+    assert.equal(trusted.ip, '203.0.113.9');
   });
 });
