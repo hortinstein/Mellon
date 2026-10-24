@@ -1,46 +1,47 @@
-# Fly.io configuration. Deploy with scripts/fly-deploy.sh <app-name>, which
-# creates the app, the volume and the secrets on first run.
+# fly.toml app configuration file generated for mellon on 2026-10-24T14:03:56Z
 #
-# Mellon stores everything in one JSON file on the mounted volume, so it must run
-# as exactly ONE machine. Don't scale it out; scale up (memory/CPU) instead.
-app = "mellon"
-primary_region = "iad"
-kill_signal = "SIGTERM"
-kill_timeout = "10s"
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'mellon'
+primary_region = 'nrt'
+kill_signal = 'SIGTERM'
+kill_timeout = '10s'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [env]
-  NODE_ENV = "production"
-  PORT = "8080"
-  MELLON_DATA = "/data/mellon.json"
-  JEV_MODEL = "jev-latest"
+  JEV_MODEL = 'jev-latest'
+  MELLON_DATA = '/data/mellon.json'
+  NODE_ENV = 'production'
+  PORT = '8080'
 
 [[mounts]]
-  source = "mellon_data"
-  destination = "/data"
+  source = 'mellon_data'
+  destination = '/data'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
   [http_service.concurrency]
-    type = "requests"
-    soft_limit = 200
+    type = 'requests'
     hard_limit = 250
+    soft_limit = 200
 
   [[http_service.checks]]
-    grace_period = "10s"
-    interval = "30s"
-    method = "GET"
-    path = "/api/status"
-    timeout = "5s"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/api/status'
 
 [[vm]]
-  memory = "256mb"
-  cpu_kind = "shared"
+  memory = '256mb'
+  cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 256
