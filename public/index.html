@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT</span></div>
 
   <nav class="nav">
     <div class="nav-inner">
@@ -25,6 +25,7 @@
       </a>
       <div class="nav-links">
         <a href="/#console">Console</a>
+        <a href="/lab">Field report</a>
         <a href="/api.html">API</a>
         <a href="/admin" id="nav-admin" class="hidden">Admin</a>
         <a href="/#identity" id="nav-account" class="nav-account">Sign in</a>
@@ -118,9 +119,9 @@
         <span class="card-idx">FIG. 3</span>
         <h3>Quantum threat model</h3>
         <p>Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A quantum adversary must therefore state its business in plain English, where the Manipulation Index is waiting.</p>
-        <p class="honest">Engineering note: this figure is satire. The real quantum posture is AES-256-GCM at rest, roughly 128-bit secure against Grover, plus whatever TLS your runtime negotiates with Jev.</p>
+        <p class="honest">Engineering note: don't take our word for it. Point an agent at the source, hand it this threat model and tell it to break Panel B. Make it validate every claim for itself. We already know what it will find.</p>
       </div>
-      <div class="diagram"><img src="/diagrams/quantum.svg" alt="Satirical comparison: Shor's algorithm breaks RSA, but finds no modulus in Mellon and is denied for rudeness. Includes an honest engineering note." loading="lazy"></div>
+      <div class="diagram"><img src="/diagrams/quantum.svg" alt="Comparison: Shor's algorithm breaks RSA, but finds no modulus in Mellon and is denied for rudeness. An engineering note dares you to have an agent verify it." loading="lazy"></div>
     </article>
   </section>
 
@@ -259,7 +260,7 @@
       <span class="mono">Speak, friend, and enter.</span>
     </div>
   </footer>
-  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT</span></div>
 
   <div id="toast" class="toast hidden" role="alert"></div>
   <script type="module" src="/app.js"></script>

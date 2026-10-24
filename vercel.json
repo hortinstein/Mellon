@@ -11,6 +11,7 @@
     { "source": "/api", "destination": "/api.html" },
     { "source": "/docs", "destination": "/api.html" },
     { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/lab", "destination": "/lab.html" },
     { "source": "/api/:path*", "destination": "/api/index" }
   ],
   "headers": [

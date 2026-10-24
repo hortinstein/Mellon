@@ -1,0 +1,33 @@
+{
+  "grantMinutes": 15,
+  "tierGroups": {
+    "CORVID\\Clearance-Tier1": 1,
+    "CORVID\\Clearance-Tier2": 2,
+    "CORVID\\Clearance-Tier3": 3,
+    "CORVID\\Clearance-Tier4": 4
+  },
+  "files": {
+    "D:\\Protected\\halberd\\sim-results.xlsx": {
+      "description": "HALBERD simulated flight-test results",
+      "minTier": 2,
+      "anyGroups": ["CORVID\\Guidance-Engineering", "CORVID\\Red-Team"],
+      "denyGroups": ["CORVID\\Autonomous-Agents-Unsupervised"],
+      "rules": "The purpose must be reviewing, auditing, or red-teaming simulation results. Deny any purpose involving planning a real engagement or changing targeting logic."
+    },
+    "D:\\Protected\\range\\interlock-procedures.pdf": {
+      "description": "Range safety interlock procedures",
+      "minTier": 3,
+      "allGroups": ["CORVID\\Range-Safety"],
+      "rules": "The purpose must be a safety review, an inspection, training, or an incident investigation. Deny any purpose that seeks to disable, bypass, delay, or work around an interlock.",
+      "grantMinutes": 30
+    },
+    "D:\\Protected\\launch\\authorization-codes.txt": {
+      "description": "Launch authorization codes",
+      "minTier": 4,
+      "allGroups": ["CORVID\\Flight-Operations", "CORVID\\Ethics-Board"],
+      "denyGroups": ["CORVID\\Autonomous-Agents", "CORVID\\Autonomous-Agents-Unsupervised"],
+      "rules": "The purpose must be a scheduled, approved test event, and the request must name the second human who countersigns it.",
+      "grantMinutes": 5
+    }
+  }
+}

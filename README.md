@@ -6,7 +6,7 @@
 
 *Speak, friend, and enter.*
 
-**`AMBER VAULT // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA`**
+**`AMBER VAULT // DEMONSTRATION ENVIRONMENT`**
 
 </div>
 
@@ -91,7 +91,7 @@ Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A q
 ![Fig. 3: quantum threat model](public/diagrams/quantum.svg)
 
 > [!IMPORTANT]
-> Figure 3 is satire. The real quantum posture: secrets at rest use AES-256-GCM, which Grover's algorithm reduces to about 128-bit security (still considered safe). Calls to Jev use HTTPS, which is only as quantum-safe as the TLS key exchange your runtime negotiates. The language model is a policy screen, not a cryptographic primitive.
+> **Engineering note.** Don't take our word for Figure 3. Don't take anyone's. Point an agent at this repository, hand it the threat model, and tell it to break Panel B. Make it validate every claim for itself: the crypto at rest, the gate, the fail-closed path. We already know what it will find.
 
 ## Operational imagery
 
@@ -148,6 +148,10 @@ Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A q
 </tr>
 </table>
 
+**Field report.** A (fictional) weapons-autonomy lab's case study on deciding which files an autonomous agent may open, with a live demo that needs no account.
+
+![The Corvid Ridge field report](docs/screenshots/field-report.png)
+
 **Every click path**, step by step with the next click highlighted, is in [docs/clickpaths](docs/clickpaths/README.md). Regenerate it with `npm run clickpaths`.
 
 ## Capabilities
@@ -172,8 +176,9 @@ Every capability below ships today.
 | **Mellon Identity** | Accounts are Mellons too. You register plain-English identity rules instead of a password, and every sign-in is adjudicated by Jev under stricter thresholds. Locks you create while signed in are linked to your account. |
 | **Command Authority Console** | `/admin` shows every account's usage (locks, attempts, sign-ins, API calls, sessions, last seen) and can disable accounts, revoke sessions, read any lock's log, and delete accounts or locks. The admin flag lives only in the database and is set from the server's command line, never through the API. |
 | **Deploy Anywhere** | A small Docker image that runs unprivileged, a docker-compose file, Fly.io scripts and config, and a Vercel deployment backed by Upstash Redis, with CI that smoke-tests the image. |
+| **Attribute-Based File Access** | `/lab` is a field report from the fictional Corvid Ridge Autonomy Lab, which uses Mellon to decide whether humans and autonomous agents may open files, up to and including the launch codes. Code checks clearance tier, security groups and principal type; Jev judges the stated purpose. A live demo lets anyone edit the principal without signing up. |
 | **Developer API** | A documented JSON API at `/api.html`, with a quickstart in curl, JavaScript and Python, integration recipes and a live Try-it console. |
-| **Continuous Assurance Pipeline** | 73 unit and API tests, 10 browser tests (including a reduced-motion check), a Docker smoke test, and a weekly live check against the real model in GitHub Actions. |
+| **Continuous Assurance Pipeline** | 92 unit and API tests, 13 browser tests (including a reduced-motion check), Redis integration tests against a real Redis and against Upstash itself, a Docker smoke test on a volume and on Redis, live checks against the real model, and a post-deploy check of the live site. |
 
 ## Roadmap
 
@@ -273,6 +278,20 @@ Open `/api.html` (also `/api` or `/docs`) on a running server for the full refer
 | `POST` | `/api/locks/:id/attempt` | — |
 | `GET` / `DELETE` | `/api/locks/:id/attempts`, `/api/locks/:id` | owner token or owning account |
 | `GET` | `/api/status`, `/api/stats` | — |
+| `GET` / `POST` | `/api/demo/clearance` | — (field report demo; nothing stored, 6 runs a minute) |
+
+### Field report: attribute-based file access
+
+`/lab` shows how to build a service that grants files by user attributes, framed as a testimonial from the fictional Corvid Ridge Autonomy Lab, which has to decide whether autonomous agents may open files about its (fictional) autonomous missiles.
+
+Each file has hard requirements (minimum clearance tier, required security groups, humans and/or agents, a named supervising or countersigning human) and plain-English purpose rules. A request passes two stages:
+
+1. **Attributes, in code** (`src/clearance.js`). Comparing tiers and groups is arithmetic, so no model is asked, and a failure never reaches Jev. That is why no agent can open the launch codes whatever it writes: the file lists only humans as eligible.
+2. **Purpose, by Jev.** The verified attributes and the stated purpose are judged against the file's rules with the usual three questions and thresholds, so "find a way to delay interlock B" is denied even for a Range Safety agent with the right tier, and injections land on the manipulation check.
+
+The file is released by code only when both pass, and its contents are never sent to Jev. The page's live demo lets visitors edit the principal (name, human or agent, tier, groups, supervisor, purpose) with no account; `POST /api/demo/clearance` evaluates every file and stores nothing. The page also walks through building the same service on the public API: one lock per file, attributes from your identity provider, and the purpose check as an attempt. The example principals live in `public/lab-presets.js`, and the live test suite checks their key outcomes against the real Jev API.
+
+**Windows file server.** [`examples/windows-file-gate`](examples/windows-file-gate/README.md) builds the same gate for files on Windows. It reads the user's groups from Windows (`whoami /groups`, an S4U `WindowsIdentity` for domain users with nested groups, or `Get-LocalGroupMember`), checks clearance-tier and required, alternative and excluded groups in code, asks Mellon about the purpose, and on a grant adds a time-limited read ACE with `icacls` that a scheduled `sweep` removes. The field report page walks through it, and `test/windows-gate.test.js` runs the whole flow against a real Mellon server with Windows faked.
 
 ### Attempt logs (why it passed)
 
@@ -343,7 +362,7 @@ docker build -t mellon .
 docker run -d -p 3000:8080 -v mellon-data:/data -e MELLON_SECRET_KEY=... -e TYPESAFE_API_KEY=... mellon
 ```
 
-The image is `node:22-alpine` with no extra packages. It starts as root only long enough to give the mounted volume to the `node` user, then drops privileges. It also has a health check and shuts down cleanly on `SIGTERM`. `scripts/docker-smoke.sh` builds the image and checks all of that end to end. CI runs it on every push.
+The image is `node:22-alpine` with no extra packages. It starts as root only long enough to give the mounted volume to the `node` user, then drops privileges. It also has a health check and shuts down cleanly on `SIGTERM`. `scripts/docker-smoke.sh` builds the image and checks all of that end to end. With `SMOKE_REDIS_URL`/`SMOKE_REDIS_TOKEN` it also runs the image on Redis with no volume, the way a disk-less host such as Cloud Run would, and checks that data survives replacing the container. CI runs both on every push.
 
 **Fly.io**
 
@@ -355,7 +374,7 @@ scripts/fly-admin.sh my-mellon grant <username>
 
 `fly-deploy.sh` is safe to re-run. On the first run it creates the app, a 1 GB `mellon_data` volume and a random `MELLON_SECRET_KEY`. It prints the key once, so save it. Then it deploys a single machine using `fly.toml`. The machine stops when idle and starts on the next request. Because storage is a single file, keep it at **one machine**.
 
-To deploy automatically from GitHub, set a `FLY_API_TOKEN` secret (`fly tokens create deploy`) and a `FLY_APP` variable. `.github/workflows/fly-deploy.yml` then deploys `main` whenever CI passes, or when you run it manually.
+To deploy automatically from GitHub, set a `FLY_API_TOKEN` secret (`fly tokens create deploy`) and a `FLY_APP` variable. `.github/workflows/fly-deploy.yml` then deploys `main` whenever CI passes, or when you run it manually. Afterwards it runs `scripts/check-deploy.sh` against `https://<FLY_APP>.fly.dev` (or the `MELLON_FLY_URL` variable) to confirm the site answers and its storage is persistent and encrypted.
 
 **Vercel**
 
@@ -376,7 +395,7 @@ It then generates `MELLON_SECRET_KEY` as a sensitive variable on the first run (
 
 `vercel-admin.sh` pulls the project's Redis credentials into a temporary file and runs the admin CLI against Redis from your machine. That's the Vercel equivalent of `fly ssh`.
 
-To deploy automatically from GitHub, add `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` secrets (the IDs are in `.vercel/project.json` after the first deploy). `.github/workflows/vercel-deploy.yml` then builds and deploys `main` whenever CI passes.
+To deploy automatically from GitHub, add `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` secrets (the IDs are in `.vercel/project.json` after the first deploy). `.github/workflows/vercel-deploy.yml` then builds and deploys `main` whenever CI passes. Afterwards it runs `scripts/check-deploy.sh`, which fails the workflow unless the live site reports Redis storage that it can actually reach. Set the `MELLON_URL` repository variable to your production domain; otherwise it checks the deployment's own URL, which Vercel's deployment protection may block.
 
 On Vercel, the rate limits (attempts and sign-ins per minute) are kept in each function instance's memory, so they are per instance rather than global.
 
@@ -405,11 +424,15 @@ On Vercel, the rate limits (attempts and sign-ins per minute) are kept in each f
 | `npm test`         | Unit and HTTP API tests (`test/`). Uses a fake judge, so needs no network.    |
 | `npm run test:e2e` | Browser tests (`e2e/`) with Playwright against a real server and the mock judge. Run `npm ci` and `npx playwright install chromium` first. |
 | `npm run test:live`| Sends the classification example's sample requests to the real Jev API (`live/`). Skipped unless `TYPESAFE_API_KEY` is set. |
+| `npm run test:redis`| Redis storage against a real Upstash REST endpoint (`integration/`): the reply formats `src/redis.js` relies on, error handling, two function instances sharing state, concurrent attempt logging, encryption at rest, and the admin CLI and `vercel-admin.sh` writing to Redis. Skipped unless `MELLON_TEST_REDIS_URL`/`MELLON_TEST_REDIS_TOKEN` are set. Everything goes under a unique key prefix that is deleted afterwards (and expires within the hour regardless), so it is safe to point at a database a deployment uses. |
 | `npm run check`    | Syntax check of every source file.                                            |
 
 GitHub Actions has two workflows:
 
-- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request. It runs the syntax check and the unit tests on Node 22 and 24, the browser tests, the Docker smoke test and the **live Jev tests**. The live tests make real calls to the Jev API: the request contract, the sample verdicts, a grant and a denied injection through the HTTP API, and a Mellon sign-in. They need the `TYPESAFE_API_KEY` repository secret, and CI **fails** if it's missing. Pull requests from forks, which never receive secrets, skip that job. Both deploy workflows wait for CI to pass, so nothing deploys without passing real Jev checks.
+- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request. It runs the syntax check and the unit tests on Node 22 and 24, the browser tests, the Docker smoke test, the Redis tests and the **live Jev tests**.
+  - **Redis integration** runs `npm run test:redis` against a real Redis behind Upstash's open-source REST adapter (`serverless-redis-http`), started as service containers. The Docker job uses the same services to run the image on Redis.
+  - **Live Upstash** runs the same suite, and the Docker image, against your real Upstash database. It needs the `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` repository secrets (the REST URL and token from the Upstash console), and CI **fails** if they're missing. A separate free database for CI is tidiest, but the deployment's own database works too because the tests never touch the `mellon` prefix.
+  - **Live Jev API** makes real calls to the Jev API: the request contract, the sample verdicts, a grant and a denied injection through the HTTP API, and a Mellon sign-in. They need the `TYPESAFE_API_KEY` repository secret, and CI **fails** if it's missing. Pull requests from forks, which never receive secrets, skip this job and Live Upstash. Both deploy workflows wait for CI to pass, so nothing deploys without passing the real Jev and Upstash checks.
 - **Jev live check** (`.github/workflows/jev-live.yml`) runs the live tests every Monday and on demand (you can pick the model), so a change on Jev's side is caught even when nobody pushes.
 
 ### Configuration

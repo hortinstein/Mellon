@@ -5,12 +5,14 @@ import { fileURLToPath } from 'node:url';
 import { createJevClient } from './src/jev.js';
 import { DEFAULT_POLICY, evaluate, explain } from './src/gate.js';
 import { backendFromEnv, createStore } from './src/store.js';
+import { catalog, decideAll, sanitizePrincipal } from './src/clearance.js';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PUBLIC = join(ROOT, 'public');
 const LIMITS = { name: 120, description: 1000, rules: 8000, secret: 8000, input: 4000, statement: 4000, username: 32, bodyBytes: 64 * 1024 };
 const ATTEMPTS_PER_MINUTE = 10;
 const SIGNINS_PER_MINUTE = 5;
+const DEMO_RUNS_PER_MINUTE = 6; // each run can ask Jev about every file in the demo
 const USERNAME = /^[a-z0-9][a-z0-9_-]{2,31}$/;
 const MIN_IDENTITY_RULES = 24;
 // Sign-in is judged more strictly than a typical lock.
@@ -74,6 +76,19 @@ export function createApp({ store, jev }) {
     }]],
 
     ['GET', /^\/api\/stats$/, () => [200, store.stats()]],
+
+    /* Attribute-based access demo (the Corvid Ridge field report). No account,
+       nothing stored: the visitor edits a principal and sees which files open. */
+
+    ['GET', /^\/api\/demo\/clearance$/, () => [200, { ...catalog(), mode: jev.mode, model: jev.model }]],
+
+    ['POST', /^\/api\/demo\/clearance$/, async (req) => {
+      if (rateLimited(`${clientIp(req)}:demo`, DEMO_RUNS_PER_MINUTE)) return [429, { error: 'Too many demo runs; wait a minute.' }];
+      const body = await readJson(req);
+      const principal = sanitizePrincipal(body.principal);
+      const results = await decideAll(jev, principal);
+      return [200, { principal, mode: jev.mode, model: jev.model, results }];
+    }],
 
     ['GET', /^\/api\/locks$/, () => [200, store.list()]],
 
@@ -357,7 +372,7 @@ function send(res, status, body) {
 }
 
 async function serveStatic(pathname, res) {
-  const aliases = { '/': '/index.html', '/api': '/api.html', '/docs': '/api.html', '/admin': '/admin.html' };
+  const aliases = { '/': '/index.html', '/api': '/api.html', '/docs': '/api.html', '/admin': '/admin.html', '/lab': '/lab.html' };
   const rel = normalize(aliases[pathname] ?? pathname).replace(/^(\.\.[/\\])+/, '');
   const file = join(PUBLIC, rel);
   if (!file.startsWith(PUBLIC)) return send(res, 403, { error: 'Forbidden' });

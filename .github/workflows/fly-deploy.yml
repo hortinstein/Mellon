@@ -3,6 +3,8 @@ name: Deploy to Fly.io
 # Deploys main after CI passes, or on demand. Needs a FLY_API_TOKEN repository
 # secret (fly tokens create deploy) and a FLY_APP repository variable naming an
 # app already set up with scripts/fly-deploy.sh (volume and secrets exist).
+# After deploying it checks the live site (scripts/check-deploy.sh) at the
+# MELLON_FLY_URL repository variable, or https://<FLY_APP>.fly.dev.
 on:
   workflow_run:
     workflows: [CI]
@@ -43,3 +45,6 @@ jobs:
       - name: Deploy
         if: steps.cfg.outputs.ready == 'true'
         run: flyctl deploy --remote-only --app "$FLY_APP" --ha=false
+      - name: Check the live site
+        if: steps.cfg.outputs.ready == 'true'
+        run: scripts/check-deploy.sh "${{ vars.MELLON_FLY_URL || format('https://{0}.fly.dev', vars.FLY_APP) }}" file

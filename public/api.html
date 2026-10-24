@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body class="docs-page">
-  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT</span></div>
 
   <nav class="nav">
     <div class="nav-inner">
@@ -25,6 +25,7 @@
       </a>
       <div class="nav-links">
         <a href="/#console">Console</a>
+        <a href="/lab">Field report</a>
         <a href="/api.html" aria-current="page">API</a>
         <a href="/#identity" id="nav-account" class="nav-account">Sign in</a>
       </div>
@@ -185,6 +186,8 @@ print(verdict["granted"], verdict.get("secret"))</code></pre>
             <tr><td><span class="m del">DELETE</span></td><td><code>/api/locks/:id</code></td><td>Owner</td><td>Delete a lock and its payload</td></tr>
             <tr><td><span class="m get">GET</span></td><td><code>/api/status</code></td><td>—</td><td>Judge mode, model, encryption, default policies</td></tr>
             <tr><td><span class="m get">GET</span></td><td><code>/api/stats</code></td><td>—</td><td>Aggregate counts only</td></tr>
+            <tr><td><span class="m get">GET</span></td><td><a href="/lab#endpoint"><code>/api/demo/clearance</code></a></td><td>—</td><td>Field report demo: tiers, groups and file requirements (no contents)</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><a href="/lab#endpoint"><code>/api/demo/clearance</code></a></td><td>—</td><td>Field report demo: which files a principal may open, and why. Nothing stored; 6 a minute</td></tr>
             <tr><td><span class="m get">GET</span></td><td><a href="#ep-admin"><code>/api/admin/overview</code></a></td><td>Admin</td><td>Totals and per-account usage</td></tr>
             <tr><td><span class="m get">GET</span></td><td><code>/api/admin/accounts/:username</code></td><td>Admin</td><td>One account's usage and locks</td></tr>
             <tr><td><span class="m post">POST</span></td><td><code>/api/admin/accounts/:username/disable</code></td><td>Admin</td><td><code>{"disabled": true|false}</code>; disabling revokes sessions</td></tr>
@@ -480,7 +483,7 @@ fi</code></pre>
       <span class="mono">Speak, friend, and enter.</span>
     </div>
   </footer>
-  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT</span></div>
   <div id="toast" class="toast hidden" role="alert"></div>
 
   <script type="module" src="/docs.js"></script>
