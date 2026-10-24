@@ -1,0 +1,14 @@
+.github
+data
+docs
+e2e
+live
+test
+test-results
+playwright-report
+node_modules
+Dockerfile
+docker-compose.yml
+fly.toml
+.env
+.env.*

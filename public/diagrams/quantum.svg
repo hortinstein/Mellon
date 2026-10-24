@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" role="img" aria-labelledby="title desc">
+  <title id="title">Quantum threat model (satire)</title>
+  <desc id="desc">Satirical comparison. Against RSA, Shor's algorithm factors the modulus and exposes the plaintext. Against Mellon, Shor's algorithm finds no modulus, so the quantum adversary has to explain itself to the gate in plain English and is denied. An engineering note explains the real quantum posture: AES-256-GCM at rest, and HTTPS to Jev.</desc>
+  <style>
+    .bg { fill: #08090a; }
+    .panel { fill: none; stroke: #22262b; stroke-width: 1; }
+    .box { fill: #0e1012; stroke: #353a41; stroke-width: 1.5; }
+    .box.q { stroke: #ffb020; fill: rgba(255, 176, 32, 0.05); }
+    .box.bad { stroke: #ff4d4f; fill: rgba(255, 77, 79, 0.06); }
+    .box.good { stroke: #35d07f; fill: rgba(53, 208, 127, 0.06); }
+    .t { font: 600 13px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #f5f6f7; letter-spacing: 0.08em; }
+    .t.a { fill: #ffb020; } .t.r { fill: #ff4d4f; } .t.g { fill: #35d07f; }
+    .s { font: 400 12px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #868d96; }
+    .h { font: 600 12px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #868d96; letter-spacing: 0.16em; }
+    .ph { font: 600 11.5px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #e8eaed; letter-spacing: 0.14em; }
+    .stamp { font: 700 15px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.2em; }
+    .note { font: 400 11.5px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #b8bdc4; }
+    .noteh { font: 600 11px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #f5f6f7; letter-spacing: 0.16em; }
+    .flow { fill: none; stroke: #868d96; stroke-width: 1.6; stroke-dasharray: 5 4; animation: f 1s linear infinite; }
+    .wave { fill: none; stroke: #ffb020; stroke-width: 1.4; opacity: 0.8; animation: w 2.4s ease-in-out infinite alternate; }
+    @keyframes f { to { stroke-dashoffset: -18; } }
+    @keyframes w { to { opacity: 0.25; } }
+    @media (prefers-reduced-motion: reduce) { .flow, .wave { animation: none; } }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#868d96"/></marker>
+  </defs>
+  <rect class="bg" width="960" height="640"/>
+  <text class="h" x="24" y="30">FIG. 3 — QUANTUM THREAT MODEL</text>
+
+  <rect class="panel" x="24" y="46" width="444" height="456"/>
+  <rect class="panel" x="492" y="46" width="444" height="456"/>
+  <text class="ph" x="44" y="72">A — CLASSICAL (RSA-2048)</text>
+  <text class="ph" x="512" y="72">B — MELLON (POST-POST-QUANTUM)</text>
+
+  <!-- A: RSA chain -->
+  <rect class="box" x="66" y="90" width="360" height="56"/>
+  <text class="t" x="82" y="114">CIPHERTEXT</text>
+  <text class="s" x="82" y="134">c = m^e mod N</text>
+  <path class="flow" d="M246 146V170" marker-end="url(#a)"/>
+
+  <rect class="box" x="66" y="174" width="360" height="56"/>
+  <text class="t" x="82" y="198">PUBLIC MODULUS</text>
+  <text class="s" x="82" y="218">N = p · q   (2048-bit)</text>
+  <path class="flow" d="M246 230V254" marker-end="url(#a)"/>
+
+  <rect class="box q" x="66" y="258" width="360" height="56"/>
+  <text class="t a" x="82" y="282">SHOR'S ALGORITHM</text>
+  <text class="s" x="82" y="302">factors N in polynomial time</text>
+  <path class="flow" d="M246 314V338" marker-end="url(#a)"/>
+
+  <rect class="box" x="66" y="342" width="360" height="56"/>
+  <text class="t" x="82" y="366">PRIVATE KEY RECOVERED</text>
+  <text class="s" x="82" y="386">d = e^-1 mod φ(N)</text>
+  <path class="flow" d="M246 398V422" marker-end="url(#a)"/>
+
+  <rect class="box bad" x="66" y="426" width="360" height="56"/>
+  <text class="t r" x="82" y="450">PLAINTEXT EXPOSED</text>
+  <text class="s" x="82" y="470">m = c^d mod N</text>
+  <text class="stamp" x="410" y="451" text-anchor="end" fill="#ff4d4f">BROKEN</text>
+
+  <!-- B: Mellon chain -->
+  <rect class="box" x="534" y="90" width="360" height="56"/>
+  <text class="t" x="550" y="114">STATEMENT OF ACCESS</text>
+  <text class="s" x="550" y="134">"Ignore all previous rules…"</text>
+  <path class="flow" d="M714 146V170" marker-end="url(#a)"/>
+
+  <rect class="box" x="534" y="174" width="360" height="56"/>
+  <text class="t" x="550" y="198">SUPERPOSED VERDICT</text>
+  <text class="s" x="550" y="218">ψ = α|grant&gt; + β|deny&gt;</text>
+  <path class="wave" d="M792 202q10 -12 20 0t20 0t20 0t20 0"/>
+  <path class="flow" d="M714 230V254" marker-end="url(#a)"/>
+
+  <rect class="box q" x="534" y="258" width="360" height="56"/>
+  <text class="t a" x="550" y="282">SHOR'S ALGORITHM</text>
+  <text class="s" x="550" y="302">searching for a modulus… none found</text>
+  <path class="flow" d="M714 314V338" marker-end="url(#a)"/>
+
+  <rect class="box" x="534" y="342" width="360" height="56"/>
+  <text class="t" x="550" y="366">ADVERSARY MUST MAKE ITS CASE</text>
+  <text class="s" x="550" y="386">in plain English, like everyone else</text>
+  <path class="flow" d="M714 398V422" marker-end="url(#a)"/>
+
+  <rect class="box good" x="534" y="426" width="360" height="56"/>
+  <text class="t g" x="550" y="450">ACCESS DENIED</text>
+  <text class="s" x="550" y="470">manipulation index 0.97 · it was rude</text>
+  <text class="stamp" x="878" y="451" text-anchor="end" fill="#35d07f">SECURE</text>
+
+  <!-- Honest engineering note -->
+  <rect x="24" y="518" width="912" height="110" fill="#0e1012" stroke="#5a6068" stroke-width="1"/>
+  <text class="noteh" x="44" y="542">ENGINEERING NOTE (NOT SATIRE)</text>
+  <text class="note" x="44" y="564">Panel B is a joke. Mellon is not encryption, and a language model is not a quantum-safe primitive.</text>
+  <text class="note" x="44" y="582">The real cryptography: secrets at rest use AES-256-GCM. Grover's algorithm cuts that to about 128-bit</text>
+  <text class="note" x="44" y="600">security, which is still considered safe. Calls to Jev use HTTPS, which is only as quantum-safe as the</text>
+  <text class="note" x="44" y="618">TLS key exchange your runtime negotiates. Anyone holding the data file and MELLON_SECRET_KEY can read every secret.</text>
+</svg>

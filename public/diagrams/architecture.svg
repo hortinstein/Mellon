@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" role="img" aria-labelledby="title desc">
+  <title id="title">Mellon system architecture</title>
+  <desc id="desc">The browser console talks JSON over HTTP to a dependency-free Node server. Inside, the HTTP API calls the gate, which calls the Jev client, which calls the TypeSafe Jev API over HTTPS. The store persists locks to a JSON file with secrets encrypted by AES-256-GCM. Configuration comes from environment variables.</desc>
+  <style>
+    .bg { fill: #08090a; }
+    .frame { fill: none; stroke: #353a41; stroke-width: 1.2; stroke-dasharray: 2 4; }
+    .box { fill: #0e1012; stroke: #353a41; stroke-width: 1.5; }
+    .box.ext { fill: #08090a; stroke: #5a6068; }
+    .box.key { stroke: #f5f6f7; }
+    .t { font: 600 13px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #f5f6f7; letter-spacing: 0.08em; }
+    .f { font: 400 11px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #5a6068; }
+    .s { font: 400 11.5px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #868d96; }
+    .h { font: 600 12px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #868d96; letter-spacing: 0.16em; }
+    .zone { font: 600 10.5px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #5a6068; letter-spacing: 0.18em; }
+    .lbl { font: 500 11px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; fill: #e8eaed; letter-spacing: 0.06em; }
+    .flow { fill: none; stroke: #868d96; stroke-width: 1.6; stroke-dasharray: 6 5; animation: f 1.1s linear infinite; }
+    .flow.g { stroke: #35d07f; }
+    .cfg { fill: none; stroke: #5a6068; stroke-width: 1.2; stroke-dasharray: 2 4; }
+    @keyframes f { to { stroke-dashoffset: -22; } }
+    @media (prefers-reduced-motion: reduce) { .flow { animation: none; } }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#868d96"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#35d07f"/></marker>
+  </defs>
+  <rect class="bg" width="960" height="470"/>
+  <text class="h" x="24" y="30">FIG. 2 — SYSTEM ARCHITECTURE</text>
+
+  <text class="zone" x="24" y="66">CLIENT</text>
+  <text class="zone" x="272" y="66">MELLON SERVER · node server.js · zero runtime deps</text>
+  <text class="zone" x="760" y="66">EXTERNAL</text>
+
+  <!-- Client -->
+  <rect class="box" x="24" y="80" width="200" height="340"/>
+  <text class="t" x="40" y="110">BROWSER</text>
+  <text class="t" x="40" y="128">CONSOLE</text>
+  <text class="s" x="40" y="160">index.html</text>
+  <text class="f" x="40" y="176">layout, banners</text>
+  <text class="s" x="40" y="204">app.js</text>
+  <text class="f" x="40" y="220">locks, sign-in, owner</text>
+  <text class="s" x="40" y="248">fx.js</text>
+  <text class="f" x="40" y="264">radar, counters,</text>
+  <text class="f" x="40" y="280">envelope chart, scroll</text>
+  <text class="s" x="40" y="308">examples.js</text>
+  <text class="f" x="40" y="324">NIGHTJAR scenario</text>
+  <text class="s" x="40" y="352">api.html + docs.js</text>
+  <text class="f" x="40" y="368">reference, Try it</text>
+  <text class="f" x="40" y="396">no secrets cached</text>
+  <text class="f" x="40" y="410">beyond the response</text>
+
+  <!-- Server frame -->
+  <rect class="frame" x="256" y="76" width="472" height="352"/>
+
+  <rect class="box key" x="296" y="92" width="400" height="88"/>
+  <text class="t" x="312" y="120">HTTP API</text><text class="f" x="400" y="120">server.js</text>
+  <text class="s" x="312" y="142">locks · attempts · accounts · sessions · /me</text>
+  <text class="s" x="312" y="160">bearer or owner-token auth · site + /api docs</text>
+  <text class="f" x="312" y="174">rate limits · body ≤ 64 KB · fails closed</text>
+
+  <rect class="box" x="296" y="214" width="184" height="92"/>
+  <text class="t" x="312" y="242">GATE</text><text class="f" x="360" y="242">src/gate.js</text>
+  <text class="s" x="312" y="264">build questions</text>
+  <text class="s" x="312" y="280">apply thresholds</text>
+  <text class="s" x="312" y="296">missing → deny</text>
+
+  <rect class="box" x="512" y="214" width="184" height="92"/>
+  <text class="t" x="528" y="242">JEV CLIENT</text>
+  <text class="f" x="528" y="258">src/jev.js</text>
+  <text class="s" x="528" y="280">bearer · 15 s timeout</text>
+  <text class="s" x="528" y="296">mock if no key</text>
+
+  <rect class="box" x="296" y="336" width="400" height="76"/>
+  <text class="t" x="312" y="362">STORE</text><text class="f" x="370" y="362">src/store.js</text>
+  <text class="s" x="312" y="384">secrets + identity rules: AES-256-GCM</text>
+  <text class="s" x="312" y="400">owner + session tokens: SHA-256 hashes</text>
+
+  <!-- External -->
+  <rect class="box ext" x="760" y="92" width="176" height="88"/>
+  <text class="t" x="776" y="120">ENVIRONMENT</text>
+  <text class="s" x="776" y="142">TYPESAFE_API_KEY</text>
+  <text class="s" x="776" y="158">MELLON_SECRET_KEY</text>
+  <text class="s" x="776" y="174">JEV_MODEL · PORT</text>
+
+  <rect class="box ext" x="760" y="214" width="176" height="92"/>
+  <text class="t" x="776" y="242">TYPESAFE JEV</text>
+  <text class="s" x="776" y="264">POST</text>
+  <text class="s" x="776" y="280">/v1/systemone</text>
+  <text class="f" x="776" y="296">jev-latest</text>
+
+  <rect class="box ext" x="760" y="336" width="176" height="76"/>
+  <text class="t" x="776" y="362">DISK / REDIS</text>
+  <text class="s" x="776" y="384">data/locks.json</text>
+  <text class="f" x="776" y="400">or Upstash REST</text>
+
+  <!-- Arrows -->
+  <path class="flow" d="M224 136H290" marker-end="url(#a)"/>
+  <text class="lbl" x="230" y="128">JSON</text>
+  <path class="flow" d="M388 180V208" marker-end="url(#a)"/>
+  <path class="flow" d="M480 260H506" marker-end="url(#a)"/>
+  <path class="flow g" d="M696 260H754" marker-end="url(#ag)"/>
+  <text class="lbl" x="702" y="252">HTTPS</text>
+  <path class="flow" d="M296 166H276V374H290" marker-end="url(#a)"/>
+  <path class="flow" d="M696 374H754" marker-end="url(#a)"/>
+  <path class="cfg" d="M760 136H702"/>
+  <text class="lbl" x="704" y="128" style="fill:#5a6068">cfg</text>
+
+  <text class="s" x="24" y="452">No runtime dependencies. State is one JSON file, or Upstash Redis on serverless hosts such as Vercel.</text>
+</svg>

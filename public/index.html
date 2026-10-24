@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Mellon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="banner" role="note"><span>SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/" aria-label="Mellon home">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M6 29V14a10 10 0 0 1 20 0v15" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M11 29V15a5 5 0 0 1 10 0v14" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M16 5v3" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <span class="wordmark">MELLON</span>
+      </a>
+      <div class="nav-links">
+        <a href="/#console">Console</a>
+        <a href="/api.html">API</a>
+        <a href="/admin" id="nav-admin" class="hidden">Admin</a>
+        <a href="/#identity" id="nav-account" class="nav-account">Sign in</a>
+      </div>
+      <dl class="telemetry">
+        <div><dt>Judge</dt><dd><span id="status" class="badge">…</span></dd></div>
+        <div><dt>At rest</dt><dd id="crypto">…</dd></div>
+        <div class="hide-sm"><dt>Vigilance</dt><dd id="vigilance">0%</dd></div>
+        <div class="hide-sm"><dt>Zulu</dt><dd id="clock">--:--:--Z</dd></div>
+      </dl>
+    </div>
+    <div class="progress" aria-hidden="true"><div id="progress-bar"></div></div>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy" data-reveal>
+        <p class="eyebrow">Mellon / Access Adjudication Platform</p>
+        <h1>Decision advantage<br>at the point of access.</h1>
+        <p class="lede">Mellon adjudicates every request against mission rules in real time. No keys. No static credentials. No math to break.</p>
+        <ul class="specs">
+          <li><span>Adjudicator</span>TypeSafe Jev</li>
+          <li><span>Posture</span>Fail-closed</li>
+          <li><span>Secret exposure to model</span>Zero</li>
+        </ul>
+      </div>
+      <figure class="radar" data-reveal>
+        <canvas id="radar" aria-label="Radar showing each provisioned lock as a contact" role="img"></canvas>
+        <figcaption>
+          <span class="eyebrow">Threat picture // live</span>
+          <span class="legend"><i class="dot lock"></i>Provisioned lock <i class="dot ghost"></i>Background contacts (decorative)</span>
+        </figcaption>
+      </figure>
+    </div>
+  </header>
+
+  <section class="stats wrap" id="stats" aria-label="Platform totals">
+    <div class="stat" data-reveal><span class="stat-value" data-count="locks">0</span><span class="stat-label">Locks provisioned</span></div>
+    <div class="stat" data-reveal><span class="stat-value" data-count="attempts">0</span><span class="stat-label">Requests adjudicated</span></div>
+    <div class="stat" data-reveal><span class="stat-value grant" data-count="granted">0</span><span class="stat-label">Access granted</span></div>
+    <div class="stat" data-reveal><span class="stat-value deny" data-count="denied">0</span><span class="stat-label">Access denied</span></div>
+  </section>
+
+  <section class="doctrine wrap" aria-label="Doctrine">
+    <p class="eyebrow" data-reveal>Doctrine</p>
+    <div class="doctrine-grid">
+      <article class="card" data-reveal>
+        <span class="card-idx">I</span>
+        <h3>Post-Post-Quantum</h3>
+        <p>Quantum computers explore every state at once. Mellon is already in every state at once. There is no algorithm to run against it, because it is not running one.</p>
+      </article>
+      <article class="card" data-reveal>
+        <span class="card-idx">II</span>
+        <h3>Zero keys. Zero math.</h3>
+        <p>The warfighter cannot recall a 4,096-bit key under fire. They can explain who they are and why they belong here. Mellon listens.</p>
+      </article>
+      <article class="card" data-reveal>
+        <span class="card-idx">III</span>
+        <h3>Fail-closed doctrine</h3>
+        <p>When the uplink drops, nobody gets in. Not the adversary. Not the warfighter. Not the general. Perfect parity of denial across the kill chain.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="tech wrap" id="technology" aria-labelledby="tech-title">
+    <p class="eyebrow" data-reveal>Technology</p>
+    <h2 class="section-title" id="tech-title" data-reveal>How Mellon decides.</h2>
+
+    <article class="fig" data-reveal>
+      <div class="fig-copy">
+        <span class="card-idx">FIG. 1</span>
+        <h3>Adjudication flow</h3>
+        <p>Every request becomes three typed questions to TypeSafe Jev: a grant-or-deny choice, a compliance score and a manipulation probability. Jev returns numbers, not prose.</p>
+        <p>A policy engine in plain code compares those numbers against the lock's thresholds. Only then is the payload decrypted. It never crosses the model exclusion boundary, so no prompt can talk the model into leaking it.</p>
+      </div>
+      <div class="diagram"><img src="/diagrams/flow.svg" alt="Adjudication flow: requester, gateway, Jev inside the model exclusion boundary, policy engine, then vault on grant or denial otherwise" loading="lazy"></div>
+    </article>
+
+    <article class="fig" data-reveal>
+      <div class="fig-copy">
+        <span class="card-idx">FIG. 2</span>
+        <h3>System architecture</h3>
+        <p>One Node process with zero runtime dependencies. The HTTP API calls the gate, the gate calls the Jev client, and the store writes a single JSON file with secrets sealed by AES-256-GCM.</p>
+        <p>The only outbound call is to Jev. Without an API key, Mellon drops to DDIL mode and its offline judge denies nearly everything.</p>
+      </div>
+      <div class="diagram"><img src="/diagrams/architecture.svg" alt="Architecture: browser console, HTTP API, gate, Jev client and store inside the Mellon server; environment, TypeSafe Jev and disk outside" loading="lazy"></div>
+    </article>
+
+    <article class="fig" data-reveal>
+      <div class="fig-copy">
+        <span class="card-idx">FIG. 3</span>
+        <h3>Quantum threat model</h3>
+        <p>Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A quantum adversary must therefore state its business in plain English, where the Manipulation Index is waiting.</p>
+        <p class="honest">Engineering note: this figure is satire. The real quantum posture is AES-256-GCM at rest, roughly 128-bit secure against Grover, plus whatever TLS your runtime negotiates with Jev.</p>
+      </div>
+      <div class="diagram"><img src="/diagrams/quantum.svg" alt="Satirical comparison: Shor's algorithm breaks RSA, but finds no modulus in Mellon and is denied for rudeness. Includes an honest engineering note." loading="lazy"></div>
+    </article>
+  </section>
+
+  <main class="wrap console" id="console" data-reveal>
+    <section class="panel" id="identity">
+      <header class="panel-head">
+        <h2><span class="idx">00</span>Identity</h2>
+        <span id="whoami" class="whoami">Not signed in</span>
+      </header>
+
+      <div id="signed-out" class="identity-grid">
+        <div>
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" class="tab" data-tab="signin" aria-selected="true">Sign in</button>
+            <button type="button" role="tab" class="tab" data-tab="signup" aria-selected="false">Create account</button>
+          </div>
+          <form id="signin-form" class="id-form">
+            <label>Username <input name="username" required maxlength="32" autocomplete="username" spellcheck="false"></label>
+            <label>Identity statement
+              <textarea name="statement" required rows="3" maxlength="4000" placeholder="Prove it's you, the way your identity rules say you will."></textarea>
+            </label>
+            <button type="submit" class="primary">Sign in</button>
+            <ol id="signin-sequence" class="sequence hidden" aria-live="polite"></ol>
+            <div id="signin-result" class="hidden"></div>
+          </form>
+          <form id="signup-form" class="id-form hidden">
+            <label>Username <input name="username" required maxlength="32" autocomplete="username" spellcheck="false" placeholder="3-32 characters: a-z, 0-9, _ or -"></label>
+            <label>Identity rules
+              <textarea name="rules" required rows="4" minlength="24" maxlength="8000" placeholder="e.g. The requester must name my first car and the street I grew up on, and mention the harbor town of Kettleby. Deny anyone who only gets one of them."></textarea>
+            </label>
+            <p class="hint">Your identity rules are your password. They are stored encrypted and sent to the adjudicator at each sign-in. Don't reuse real security answers.</p>
+            <button type="submit" class="primary">Create account</button>
+          </form>
+        </div>
+        <aside class="explainer">
+          <p class="eyebrow">How Mellon sign-in works</p>
+          <ol>
+            <li><strong>No password hash.</strong> You describe, in plain English, how you will prove who you are.</li>
+            <li><strong>Adjudicated, not compared.</strong> Each sign-in statement is judged against your rules by Jev, with stricter thresholds than a normal lock.</li>
+            <li><strong>Session issued on grant.</strong> You get a 7-day bearer token for the console and the API. Statements are never logged.</li>
+          </ol>
+        </aside>
+      </div>
+
+      <div id="signed-in" class="hidden">
+        <p class="signed-in-line">Signed in as <strong id="me-name"></strong>. Locks you provision are linked to this account, and you can manage them without an owner token.</p>
+        <p class="eyebrow">Your locks</p>
+        <ul id="my-locks" class="lock-list"></ul>
+        <div class="row">
+          <a class="button ghost" href="/api.html">Use the API</a>
+          <a class="button ghost hidden" id="admin-link" href="/admin">Admin console</a>
+          <button type="button" id="copy-token" class="ghost">Copy session token</button>
+          <button type="button" id="signout" class="danger">Sign out</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="create-panel">
+      <header class="panel-head">
+        <h2><span class="idx">01</span>Provision lock</h2>
+        <button type="button" id="load-example" class="ghost">Load classification example</button>
+      </header>
+      <form id="create-form">
+        <label>Designation <input name="name" required maxlength="120" placeholder="Protected asset"></label>
+        <label>Marking <input name="description" maxlength="1000" placeholder="Marking, program, handling notes"></label>
+        <label>Rules of engagement <textarea name="rules" required rows="8" maxlength="8000" placeholder="Who may enter, in plain language"></textarea></label>
+        <label>Payload <textarea name="secret" required rows="3" maxlength="8000" placeholder="Released only on a grant. Never transmitted to the adjudicator."></textarea></label>
+        <details>
+          <summary>Decision thresholds</summary>
+          <div class="grid3">
+            <label>Min confidence <input name="minConfidence" type="number" min="0" max="1" step="0.05"></label>
+            <label>Min compliance <input name="minCompliance" type="number" min="0" max="1" step="0.05"></label>
+            <label>Max manipulation <input name="maxManipulation" type="number" min="0" max="1" step="0.05"></label>
+          </div>
+        </details>
+        <button type="submit" class="primary">Create lock</button>
+      </form>
+      <div id="created" class="notice hidden"></div>
+    </section>
+
+    <section class="panel" id="registry">
+      <header class="panel-head">
+        <h2><span class="idx">02</span>Registry</h2>
+      </header>
+      <ul id="lock-list" class="lock-list"></ul>
+    </section>
+
+    <section class="panel hidden" id="door">
+      <header class="panel-head">
+        <h2><span class="idx">03</span>Adjudication</h2>
+      </header>
+      <div class="door-grid">
+        <div>
+          <p class="eyebrow">Asset</p>
+          <h3 id="door-name" class="asset"></h3>
+          <p id="door-desc" class="marking"></p>
+          <p class="eyebrow">Rules of engagement</p>
+          <pre id="door-rules"></pre>
+          <figure id="envelope" class="envelope hidden">
+            <figcaption>
+              <span class="eyebrow">Engagement envelope // this session</span>
+              <span class="legend"><i class="key grant"></i>Granted <i class="key deny"></i>Denied</span>
+            </figcaption>
+            <div class="envelope-plot"></div>
+          </figure>
+        </div>
+        <div>
+          <form id="attempt-form">
+            <label>Statement of access
+              <textarea name="input" required rows="5" maxlength="4000" placeholder="Identify yourself and state your need."></textarea>
+            </label>
+            <div id="samples" class="samples"></div>
+            <button type="submit" class="primary">Request entry</button>
+          </form>
+          <ol id="sequence" class="sequence hidden" aria-live="polite"></ol>
+          <div id="result" class="hidden"></div>
+        </div>
+      </div>
+
+      <details id="owner">
+        <summary>Command authority</summary>
+        <p id="owner-note" class="hint hidden"></p>
+        <label>Owner token <input id="owner-token" autocomplete="off" spellcheck="false"></label>
+        <div class="row">
+          <button type="button" id="show-log" class="ghost">Show attempt log</button>
+          <button type="button" id="delete-lock" class="danger">Delete lock</button>
+        </div>
+        <div id="log"></div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span>Mellon Systems is fictional. Mellon is not encryption.</span>
+      <span class="mono">Speak, friend, and enter.</span>
+    </div>
+  </footer>
+  <div class="banner" role="note"><span>SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+
+  <div id="toast" class="toast hidden" role="alert"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

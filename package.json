@@ -1,0 +1,22 @@
+{
+  "name": "mellon",
+  "version": "0.1.0",
+  "description": "Non-deterministic lock: a secret guarded by a natural-language ruleset, judged by TypeSafe Jev",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"test/*.test.js\"",
+    "test:live": "node --test \"live/*.test.js\"",
+    "test:e2e": "playwright test",
+    "check": "for f in server.js src/*.js public/*.js scripts/*.js; do node --check \"$f\" || exit 1; done",
+    "clickpaths": "node scripts/clickpaths.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

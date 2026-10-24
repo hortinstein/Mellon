@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Mellon runtime data (locks + secrets)
+data/
+node_modules/
+playwright-report/
+test-results/
+
+# Vercel CLI link + pulled env
+.vercel/
+.env.vercel
