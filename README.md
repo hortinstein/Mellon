@@ -409,8 +409,8 @@ On Vercel, the rate limits (attempts and sign-ins per minute) are kept in each f
 
 GitHub Actions has two workflows:
 
-- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request. It runs the syntax check and the unit tests on Node 22 and 24, then the browser tests. If the browser tests fail, it uploads the Playwright report.
-- **Jev live check** (`.github/workflows/jev-live.yml`) runs every Monday, on demand (you can pick the model), and when the judge code changes on `main`. It needs a `TYPESAFE_API_KEY` repository secret. Without one, the job is skipped with a notice.
+- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request. It runs the syntax check and the unit tests on Node 22 and 24, the browser tests, the Docker smoke test and the **live Jev tests**. The live tests make real calls to the Jev API: the request contract, the sample verdicts, a grant and a denied injection through the HTTP API, and a Mellon sign-in. They need the `TYPESAFE_API_KEY` repository secret, and CI **fails** if it's missing. Pull requests from forks, which never receive secrets, skip that job. Both deploy workflows wait for CI to pass, so nothing deploys without passing real Jev checks.
+- **Jev live check** (`.github/workflows/jev-live.yml`) runs the live tests every Monday and on demand (you can pick the model), so a change on Jev's side is caught even when nobody pushes.
 
 ### Configuration
 

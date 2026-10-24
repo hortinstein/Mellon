@@ -65,3 +65,21 @@ jobs:
           node-version: 22
       - name: Build and smoke-test the image
         run: scripts/docker-smoke.sh mellon:ci
+
+  jev-live:
+    name: Live Jev API
+    runs-on: ubuntu-latest
+    # Forked pull requests don't receive secrets, so they can't call Jev.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+      JEV_MODEL: ${{ vars.JEV_MODEL || 'jev-latest' }}
+      MELLON_REQUIRE_JEV: '1'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Real Jev calls (contract, verdicts, HTTP end to end, sign-in)
+        run: npm run test:live
+
