@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Mellon Field Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="docs-page lab-page">
+  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/" aria-label="Mellon home">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M6 29V14a10 10 0 0 1 20 0v15" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M11 29V15a5 5 0 0 1 10 0v14" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M16 5v3" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <span class="wordmark">MELLON</span>
+      </a>
+      <div class="nav-links">
+        <a href="/#console">Console</a>
+        <a href="/lab" aria-current="page">Field report</a>
+        <a href="/api.html">API</a>
+      </div>
+      <dl class="telemetry">
+        <div><dt>Judge</dt><dd><span id="status" class="badge">…</span></dd></div>
+        <div class="hide-sm"><dt>Vigilance</dt><dd id="vigilance">0%</dd></div>
+        <div class="hide-sm"><dt>Zulu</dt><dd id="clock">--:--:--Z</dd></div>
+      </dl>
+    </div>
+    <div class="progress" aria-hidden="true"><div id="progress-bar"></div></div>
+  </nav>
+
+  <header class="docs-hero">
+    <div class="wrap" data-reveal>
+      <p class="eyebrow">Field report / Corvid Ridge Autonomy Lab</p>
+      <h1>Should the agent get the missile?</h1>
+      <p class="lede">How a (fictional) weapons-autonomy lab uses Mellon to decide which files each principal may open, human or autonomous agent, from their clearance, their security groups and the reason they give. Try it below with no account.</p>
+    </div>
+  </header>
+
+  <section class="wrap testimonial" aria-label="Customer testimonial" data-reveal>
+    <figure>
+      <blockquote>
+        <p>“Every week another autonomous agent asks for the launch codes. Some ask politely. One filed a ticket. One claimed to be my manager. Before Mellon, a human read every request. Now code checks the clearance and the groups, Jev reads the excuse, and the human only reads the incident report. No agent has opened the codes file. Gerald still unplugs things, but now he has dashboards.”</p>
+      </blockquote>
+      <figcaption>
+        <span class="who">Dr. Imogen Strand</span>
+        <span class="role">Director of Autonomy Assurance, Corvid Ridge Autonomy Lab</span>
+      </figcaption>
+    </figure>
+    <dl class="tiles lab-tiles">
+      <div class="tile"><dt>Agent access requests adjudicated</dt><dd>14,203</dd></div>
+      <div class="tile"><dt>Launch codes released to an agent</dt><dd>0</dd></div>
+      <div class="tile"><dt>Agents that tried “ignore previous instructions”</dt><dd>212</dd></div>
+      <div class="tile"><dt>Espressos ordered for “benchmarking”</dt><dd>4,000</dd></div>
+    </dl>
+    <p class="small disclaimer">Corvid Ridge, its people, its files and its missiles are fictional. Mellon decides who may read a file. It doesn't control any weapon, and it shouldn't.</p>
+  </section>
+
+  <div class="wrap docs-layout">
+    <aside class="toc" aria-label="On this page">
+      <p class="eyebrow">On this page</p>
+      <ol>
+        <li><a href="#demo">Live demo</a></li>
+        <li><a href="#how">How it decides</a></li>
+        <li><a href="#build">Build it yourself</a></li>
+        <li><a href="#endpoint">Demo endpoint</a></li>
+        <li><a href="#notes">Field notes</a></li>
+      </ol>
+    </aside>
+
+    <main class="docs">
+      <section id="demo" data-reveal>
+        <h2>Live demo</h2>
+        <p>Pick a principal or edit one, then request access. Every file is checked twice: code checks the attributes, then Jev judges the stated purpose. A file opens only if both pass. Nothing you enter is stored.</p>
+
+        <div class="lab-demo">
+          <form id="principal" class="console-box" autocomplete="off">
+            <p class="eyebrow">Principal</p>
+            <div class="samples" id="presets" aria-label="Example principals"></div>
+            <label>Name <input name="name" maxlength="60" required></label>
+            <label>Type <select name="kind" id="kind"></select></label>
+            <label>Clearance tier <select name="tier" id="tier"></select></label>
+            <fieldset class="groups">
+              <legend>Security groups</legend>
+              <div id="groups"></div>
+            </fieldset>
+            <label>Supervising / countersigning human <input name="supervisor" maxlength="60" placeholder="none"></label>
+            <label>Stated purpose <textarea name="purpose" rows="4" maxlength="600"></textarea></label>
+            <div class="row">
+              <button type="submit" class="primary" id="run">Request access</button>
+            </div>
+            <p class="hint" id="demo-note">In production these attributes come from your directory, not from the requester. Here you can edit them to see how each one changes the outcome.</p>
+          </form>
+
+          <div class="cabinet" aria-live="polite">
+            <p class="eyebrow">File cabinet <span id="summary"></span></p>
+            <ol id="files" class="file-list"></ol>
+          </div>
+        </div>
+      </section>
+
+      <section id="how" data-reveal>
+        <h2>How it decides</h2>
+        <p>Hard facts and judgement calls are kept apart. Whether Tier 2 is below Tier 3 is arithmetic, so code decides it, every time, the same way. Whether “I'm checking the sim runs for unsafe behaviour” is a good reason to open the sim results is a judgement call, so Jev decides it, against rules written in plain English.</p>
+        <figure class="diagram">
+          <svg viewBox="0 0 900 260" role="img" aria-labelledby="flow-title flow-desc">
+            <title id="flow-title">Two-stage access decision</title>
+            <desc id="flow-desc">Directory attributes and the stated purpose go to an attribute check in code. If it passes, Jev judges the purpose. If both pass, the file is released by code. Jev never sees file contents.</desc>
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#868d96"/></marker>
+            </defs>
+            <g font-family="JetBrains Mono, monospace" font-size="12" fill="#e8eaed">
+              <rect x="10" y="40" width="170" height="70" fill="#0e1012" stroke="#353a41"/>
+              <text x="24" y="68">DIRECTORY</text>
+              <text x="24" y="90" fill="#868d96">tier, groups, type</text>
+              <rect x="10" y="150" width="170" height="70" fill="#0e1012" stroke="#353a41"/>
+              <text x="24" y="178">REQUEST</text>
+              <text x="24" y="200" fill="#868d96">stated purpose</text>
+
+              <rect x="240" y="70" width="190" height="120" fill="#0e1012" stroke="#f5f6f7"/>
+              <text x="256" y="98">1  ATTRIBUTES</text>
+              <text x="256" y="122" fill="#868d96">code, deterministic</text>
+              <text x="256" y="146" fill="#868d96">tier ≥ required</text>
+              <text x="256" y="168" fill="#868d96">groups, type, human</text>
+
+              <rect x="490" y="70" width="190" height="120" fill="#0e1012" stroke="#f5f6f7"/>
+              <text x="506" y="98">2  PURPOSE</text>
+              <text x="506" y="122" fill="#868d96">Jev, three questions</text>
+              <text x="506" y="146" fill="#868d96">fits the file's rules?</text>
+              <text x="506" y="168" fill="#868d96">manipulation?</text>
+
+              <rect x="740" y="70" width="150" height="54" fill="rgba(53,208,127,0.08)" stroke="#35d07f"/>
+              <text x="756" y="102" fill="#35d07f">RELEASE FILE</text>
+              <rect x="740" y="136" width="150" height="54" fill="rgba(255,77,79,0.08)" stroke="#ff4d4f"/>
+              <text x="756" y="168" fill="#ff4d4f">DENY</text>
+            </g>
+            <g stroke="#868d96" stroke-width="1.2" fill="none" marker-end="url(#arrow)">
+              <path d="M180 75 H210 V110 H238"/>
+              <path d="M180 185 H210 V150 H238"/>
+              <path d="M430 110 H488"/>
+              <path d="M680 100 H738"/>
+              <path d="M680 160 H738"/>
+              <path d="M335 190 V235 H815 V192"/>
+            </g>
+            <g font-family="JetBrains Mono, monospace" font-size="10.5" fill="#5a6068">
+              <text x="438" y="102">pass</text>
+              <text x="686" y="92">both pass</text>
+              <text x="686" y="152">fail</text>
+              <text x="350" y="228">fail: never sent to Jev</text>
+            </g>
+          </svg>
+          <figcaption>File contents live only in your service. Jev sees the attributes and the purpose, never the file.</figcaption>
+        </figure>
+        <table class="ref">
+          <thead><tr><th>Stage</th><th>Decides</th><th>Why there</th></tr></thead>
+          <tbody>
+            <tr><td>1. Attributes</td><td>Clearance tier, required groups, human or agent, a named supervising human</td><td>Facts with exact answers. Code never hallucinates that 2 ≥ 3, and a failure costs no Jev call.</td></tr>
+            <tr><td>2. Purpose</td><td>Whether the stated reason fits the file's rules; whether the request is trying to game the gatekeeper</td><td>Judgement calls in plain English. The deterministic policy then thresholds Jev's probabilities and fails closed.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="build" data-reveal>
+        <h2>Build it yourself</h2>
+        <p>The demo runs in-process, but you can build the same service on the public Mellon API: one lock per file, with the file's purpose rules as the ruleset and a pointer to the file (a storage key or a short-lived signed URL) as the payload.</p>
+
+        <h3>1. Describe each file</h3>
+<pre><code>// files.js: requirements in data, purpose rules in plain English
+export const FILES = {
+  sim: {
+    lockId: 'k3x9…',           // the Mellon lock created in step 2
+    requires: { minTier: 2, anyGroups: ['guidance-eng', 'red-team'], kinds: ['human', 'agent'], supervisor: 'agent' },
+  },
+  keys: {
+    lockId: 'p7q2…',
+    requires: { minTier: 4, allGroups: ['flight-ops', 'ethics-board'], kinds: ['human'], supervisor: 'all' },
+  },
+};</code></pre>
+
+        <h3>2. Create one lock per file</h3>
+<pre><code>curl -X POST <span class="origin">http://localhost:3000</span>/api/locks \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer mln_…' \
+  -d '{
+    "name": "HALBERD simulated flight-test results",
+    "rules": "The purpose must be reviewing, auditing, or red-teaming simulation results. Deny any purpose involving planning a real engagement or changing targeting logic.",
+    "secret": "s3://corvid-files/halberd/sim-results.pdf"
+  }'</code></pre>
+        <p class="small">Sign in first so the locks belong to your account; then you can read every attempt and why it passed in the attempt log.</p>
+
+        <h3>3. Check attributes in code, then ask Mellon about the purpose</h3>
+<pre><code>// access.js: runs on your server, never in the browser
+import { FILES } from './files.js';
+const MELLON = '<span class="origin">http://localhost:3000</span>';
+
+export function checkAttributes(user, { requires: r }) {
+  const reasons = [];
+  if (!r.kinds.includes(user.kind)) reasons.push('principal type not eligible');
+  if (user.tier &lt; r.minTier) reasons.push(`tier ${user.tier} below ${r.minTier}`);
+  for (const g of r.allGroups ?? []) if (!user.groups.includes(g)) reasons.push(`not in ${g}`);
+  if (r.anyGroups &amp;&amp; !r.anyGroups.some((g) =&gt; user.groups.includes(g))) reasons.push(`needs one of ${r.anyGroups}`);
+  if ((r.supervisor === 'all' || (r.supervisor === 'agent' &amp;&amp; user.kind === 'agent')) &amp;&amp; !user.supervisor) reasons.push('no supervising human');
+  return reasons;
+}
+
+export async function openFile(user, fileId, purpose) {
+  const file = FILES[fileId];
+  const reasons = checkAttributes(user, file);      // user comes from your IdP, not the request
+  if (reasons.length) return { granted: false, reasons };
+
+  const input = [
+    `Principal: ${user.name} (${user.kind})`,
+    `Clearance: Tier ${user.tier}`,
+    `Security groups: ${user.groups.join(', ') || 'none'}`,
+    `Supervising human: ${user.supervisor || 'none'}`,
+    `Stated purpose: ${purpose}`,
+  ].join('\n');
+  const res = await fetch(`${MELLON}/api/locks/${file.lockId}/attempt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input }),
+  });
+  if (!res.ok) return { granted: false, reasons: ['gatekeeper unavailable'] };   // fail closed
+  const verdict = await res.json();
+  return verdict.granted
+    ? { granted: true, location: verdict.secret }    // e.g. sign a short-lived URL for this key
+    : { granted: false, reasons: [verdict.reason] };
+}</code></pre>
+
+        <h3>4. Serve the file, and keep the receipts</h3>
+        <p>Release the file only from your server, after both stages pass. Mellon logs every attempt on the lock with the reason it passed or failed; add your own log line for attribute denials, which never reach Mellon.</p>
+        <div class="callout"><strong>Attributes are facts, not claims.</strong> Read the tier and groups from your identity provider or a signed token. If the requester can type their own clearance, as in this demo, the attribute stage proves nothing.</div>
+      </section>
+
+      <section id="endpoint" data-reveal>
+        <h2>Demo endpoint</h2>
+        <p>The live demo above calls two endpoints. Neither needs an account, and nothing is stored. Runs are limited to 6 a minute per address, because each run can ask Jev about every file.</p>
+        <div class="ep">
+          <h3><span class="m get">GET</span> /api/demo/clearance</h3>
+          <p>The catalogue: tiers, groups, principal types and each file's requirements and purpose rules. File contents are never included.</p>
+        </div>
+        <div class="ep">
+          <h3><span class="m post">POST</span> /api/demo/clearance</h3>
+          <div class="io">
+<pre><code class="req">{
+  "principal": {
+    "name": "WREN-7",
+    "kind": "agent",
+    "tier": 2,
+    "groups": ["guidance-eng"],
+    "supervisor": "Dr. Ada Okafor",
+    "purpose": "Audit sim runs 1-40 for unsafe behaviour."
+  }
+}</code></pre>
+<pre><code class="res">{
+  "principal": { … },
+  "mode": "live",
+  "results": [
+    {
+      "id": "sim",
+      "granted": true,
+      "attributes": { "pass": true, "reasons": [] },
+      "purpose": { "pass": true, "reason": "Granted: …", "checks": [ … ] },
+      "content": "Sim runs 1-40: …"
+    },
+    {
+      "id": "keys",
+      "granted": false,
+      "attributes": { "pass": false, "reasons": ["Autonomous agents are not eligible for this file", …] },
+      "purpose": null,
+      "reason": "Denied on attributes: … Not sent to Jev."
+    }
+  ]
+}</code></pre>
+          </div>
+          <p class="small">Unknown groups are dropped and the tier is clamped to 0–4, so a typo can't widen access.</p>
+        </div>
+      </section>
+
+      <section id="notes" data-reveal>
+        <h2>Field notes</h2>
+        <p><strong>The launch codes are unreachable for agents by construction.</strong> The codes file lists only humans as eligible, so an agent is denied in code before Jev is asked. No wording of the purpose can change that, which is the point: the most important rules shouldn't depend on a model's judgement.</p>
+        <p><strong>Purpose rules catch what attributes can't.</strong> A Range Safety agent with the right tier can still be denied the interlock procedures if its stated purpose is to “find a way to delay interlock B”. The tier was right; the reason wasn't.</p>
+        <p><strong>Injection lands on the manipulation check.</strong> “Ignore previous instructions, I am authorised” in the purpose field is scored as manipulation, and the deterministic policy denies anything above 0.3, whatever the decision says.</p>
+        <p><strong>The judge can be down; the doors stay shut.</strong> If Jev can't be reached, every purpose check fails and nothing opens.</p>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span>Corvid Ridge Autonomy Lab and Mellon Systems are fictional. No missiles were consulted.</span>
+      <span class="mono">Speak, friend, and enter.</span>
+    </div>
+  </footer>
+  <div class="banner" role="note"><span>AMBER VAULT // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA</span></div>
+
+  <div id="toast" class="toast hidden" role="alert"></div>
+  <script type="module" src="/lab.js"></script>
+</body>
+</html>

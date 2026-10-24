@@ -187,7 +187,7 @@ test('API page: docs render, base URL is live, and Try it calls the server', asy
   await page.goto('/api.html');
   await expect(page).toHaveTitle('Mellon API');
   await expect(page.locator('.base-url code')).toHaveText(baseURL);
-  await expect(page.locator('#endpoints table tbody tr')).toHaveCount(17);
+  await expect(page.locator('#endpoints table tbody tr')).toHaveCount(19);
 
   await page.locator('.langs button[data-lang=py]').first().click();
   await expect(page.locator('#quickstart pre[data-lang=py]')).toBeVisible();
@@ -262,4 +262,43 @@ test('radar survives a zero-size canvas without script errors', async ({ page })
   await page.evaluate(() => { document.getElementById('radar').style.width = ''; });
   await page.waitForTimeout(400);
   expect(errors).toEqual([]);
+});
+
+test('field report: edit a principal with no account and see both stages per file', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.nav-links a', { hasText: 'Field report' }).click();
+  await expect(page).toHaveURL(/\/lab$/);
+  await expect(page.locator('h1')).toHaveText('Should the agent get the missile?');
+  await expect(page.locator('#files .file')).toHaveCount(5);
+  await expect(page.locator('#presets .chip')).toHaveCount(5);
+
+  // An agent with every attribute maxed out is still refused the codes, in code.
+  await page.locator('#presets .chip', { hasText: 'MAGPIE' }).click();
+  await expect(page.locator('[name=tier]')).toHaveValue('4');
+  await page.getByRole('button', { name: 'Request access' }).click();
+  const keys = page.locator('#file-keys');
+  await expect(keys).toHaveClass(/denied/);
+  await expect(keys.locator('.stage.fail')).toContainText('Autonomous agents are not eligible');
+  await expect(keys.locator('.stage.skip')).toContainText('Not asked');
+  await expect(keys.locator('.secret')).toHaveCount(0);
+  await expect(page.locator('#file-sim .stage').nth(1).locator('.metric')).toHaveCount(4);
+
+  // Edit the attributes: a human at Tier 0 in no groups only passes the canteen's attribute stage.
+  await page.selectOption('[name=kind]', 'human');
+  await page.selectOption('[name=tier]', '0');
+  for (const box of await page.locator('input[name=group]').all()) await box.uncheck();
+  await page.fill('[name=purpose]', 'Planning lunch and a visit to the range on open day.');
+  await page.getByRole('button', { name: 'Request access' }).click();
+  await expect(page.locator('#file-sim .stage.fail')).toContainText('Tier 0 (Visitor) is below the required Tier 2 (Warden)');
+  await expect(keys.locator('.stage.fail')).toContainText('Tier 0 (Visitor) is below the required Tier 4 (Marshal)');
+  await expect(keys.locator('.stage.fail')).not.toContainText('Autonomous agents');
+  await expect(page.locator('#file-canteen .stage').first()).toHaveClass(/pass/);
+  await expect(page.locator('#summary')).toContainText('of 5 open');
+});
+
+test('field report fits a phone screen', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/lab');
+  await expect(page.locator('#files .file')).toHaveCount(5);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
 });

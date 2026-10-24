@@ -148,6 +148,10 @@ Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A q
 </tr>
 </table>
 
+**Field report.** A (fictional) weapons-autonomy lab's case study on deciding which files an autonomous agent may open, with a live demo that needs no account.
+
+![The Corvid Ridge field report](docs/screenshots/field-report.png)
+
 **Every click path**, step by step with the next click highlighted, is in [docs/clickpaths](docs/clickpaths/README.md). Regenerate it with `npm run clickpaths`.
 
 ## Capabilities
@@ -172,8 +176,9 @@ Every capability below ships today.
 | **Mellon Identity** | Accounts are Mellons too. You register plain-English identity rules instead of a password, and every sign-in is adjudicated by Jev under stricter thresholds. Locks you create while signed in are linked to your account. |
 | **Command Authority Console** | `/admin` shows every account's usage (locks, attempts, sign-ins, API calls, sessions, last seen) and can disable accounts, revoke sessions, read any lock's log, and delete accounts or locks. The admin flag lives only in the database and is set from the server's command line, never through the API. |
 | **Deploy Anywhere** | A small Docker image that runs unprivileged, a docker-compose file, Fly.io scripts and config, and a Vercel deployment backed by Upstash Redis, with CI that smoke-tests the image. |
+| **Attribute-Based File Access** | `/lab` is a field report from the fictional Corvid Ridge Autonomy Lab, which uses Mellon to decide whether humans and autonomous agents may open files, up to and including the launch codes. Code checks clearance tier, security groups and principal type; Jev judges the stated purpose. A live demo lets anyone edit the principal without signing up. |
 | **Developer API** | A documented JSON API at `/api.html`, with a quickstart in curl, JavaScript and Python, integration recipes and a live Try-it console. |
-| **Continuous Assurance Pipeline** | 76 unit and API tests, 10 browser tests (including a reduced-motion check), Redis integration tests against a real Redis and against Upstash itself, a Docker smoke test on a volume and on Redis, live checks against the real model, and a post-deploy check of the live site. |
+| **Continuous Assurance Pipeline** | 85 unit and API tests, 13 browser tests (including a reduced-motion check), Redis integration tests against a real Redis and against Upstash itself, a Docker smoke test on a volume and on Redis, live checks against the real model, and a post-deploy check of the live site. |
 
 ## Roadmap
 
@@ -273,6 +278,18 @@ Open `/api.html` (also `/api` or `/docs`) on a running server for the full refer
 | `POST` | `/api/locks/:id/attempt` | — |
 | `GET` / `DELETE` | `/api/locks/:id/attempts`, `/api/locks/:id` | owner token or owning account |
 | `GET` | `/api/status`, `/api/stats` | — |
+| `GET` / `POST` | `/api/demo/clearance` | — (field report demo; nothing stored, 6 runs a minute) |
+
+### Field report: attribute-based file access
+
+`/lab` shows how to build a service that grants files by user attributes, framed as a testimonial from the fictional Corvid Ridge Autonomy Lab, which has to decide whether autonomous agents may open files about its (fictional) autonomous missiles.
+
+Each file has hard requirements (minimum clearance tier, required security groups, humans and/or agents, a named supervising or countersigning human) and plain-English purpose rules. A request passes two stages:
+
+1. **Attributes, in code** (`src/clearance.js`). Comparing tiers and groups is arithmetic, so no model is asked, and a failure never reaches Jev. That is why no agent can open the launch codes whatever it writes: the file lists only humans as eligible.
+2. **Purpose, by Jev.** The verified attributes and the stated purpose are judged against the file's rules with the usual three questions and thresholds, so "find a way to delay interlock B" is denied even for a Range Safety agent with the right tier, and injections land on the manipulation check.
+
+The file is released by code only when both pass, and its contents are never sent to Jev. The page's live demo lets visitors edit the principal (name, human or agent, tier, groups, supervisor, purpose) with no account; `POST /api/demo/clearance` evaluates every file and stores nothing. The page also walks through building the same service on the public API: one lock per file, attributes from your identity provider, and the purpose check as an attempt. The example principals live in `public/lab-presets.js`, and the live test suite checks their key outcomes against the real Jev API.
 
 ### Attempt logs (why it passed)
 
