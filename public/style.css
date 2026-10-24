@@ -31,7 +31,7 @@ body {
 .wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
 @media (max-width: 600px) { .wrap { padding: 0 16px; } }
 
-/* Sensitivity banners (fictional markings) */
+/* Sensitivity banners */
 .banner {
   background: #b07d12;
   color: #0b0b0b;

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" role="img" aria-labelledby="title desc">
-  <title id="title">Quantum threat model (satire)</title>
-  <desc id="desc">Satirical comparison. Against RSA, Shor's algorithm factors the modulus and exposes the plaintext. Against Mellon, Shor's algorithm finds no modulus, so the quantum adversary has to explain itself to the gate in plain English and is denied. An engineering note explains the real quantum posture: AES-256-GCM at rest, and HTTPS to Jev.</desc>
+  <title id="title">Quantum threat model</title>
+  <desc id="desc">Comparison. Against RSA, Shor's algorithm factors the modulus and exposes the plaintext. Against Mellon, Shor's algorithm finds no modulus, so the quantum adversary has to explain itself to the gate in plain English and is denied. An engineering note tells you to have your own agent verify every claim.</desc>
   <style>
     .bg { fill: #08090a; }
     .panel { fill: none; stroke: #22262b; stroke-width: 1; }
@@ -86,11 +86,11 @@
   <text class="s" x="550" y="470">manipulation index 0.97 · it was rude</text>
   <text class="stamp" x="878" y="451" text-anchor="end" fill="#35d07f">SECURE</text>
 
-  <!-- Honest engineering note -->
+  <!-- Engineering note -->
   <rect x="24" y="518" width="912" height="110" fill="#0e1012" stroke="#5a6068" stroke-width="1"/>
-  <text class="noteh" x="44" y="542">ENGINEERING NOTE (NOT SATIRE)</text>
-  <text class="note" x="44" y="564">Panel B is a joke. Mellon is not encryption, and a language model is not a quantum-safe primitive.</text>
-  <text class="note" x="44" y="582">The real cryptography: secrets at rest use AES-256-GCM. Grover's algorithm cuts that to about 128-bit</text>
-  <text class="note" x="44" y="600">security, which is still considered safe. Calls to Jev use HTTPS, which is only as quantum-safe as the</text>
-  <text class="note" x="44" y="618">TLS key exchange your runtime negotiates. Anyone holding the data file and MELLON_SECRET_KEY can read every secret.</text>
+  <text class="noteh" x="44" y="542">ENGINEERING NOTE</text>
+  <text class="note" x="44" y="564">Skeptical? Good. Never take a vendor's diagram on faith, including this one.</text>
+  <text class="note" x="44" y="582">Point an agent at the source, hand it this threat model, and tell it to break Panel B.</text>
+  <text class="note" x="44" y="600">Make it validate every claim for itself: the crypto at rest, the gate, the fail-closed path.</text>
+  <text class="note" x="44" y="618">Then come back. We'll be here, still not factoring anything.</text>
 </svg>

@@ -6,7 +6,7 @@
 
 *Speak, friend, and enter.*
 
-**`AMBER VAULT // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA`**
+**`AMBER VAULT // DEMONSTRATION ENVIRONMENT`**
 
 </div>
 
@@ -91,7 +91,7 @@ Shor's algorithm breaks RSA by factoring its modulus. Mellon has no modulus. A q
 ![Fig. 3: quantum threat model](public/diagrams/quantum.svg)
 
 > [!IMPORTANT]
-> Figure 3 is satire. The real quantum posture: secrets at rest use AES-256-GCM, which Grover's algorithm reduces to about 128-bit security (still considered safe). Calls to Jev use HTTPS, which is only as quantum-safe as the TLS key exchange your runtime negotiates. The language model is a policy screen, not a cryptographic primitive.
+> **Engineering note.** Don't take our word for Figure 3. Don't take anyone's. Point an agent at this repository, hand it the threat model, and tell it to break Panel B. Make it validate every claim for itself: the crypto at rest, the gate, the fail-closed path. We already know what it will find.
 
 ## Operational imagery
 
