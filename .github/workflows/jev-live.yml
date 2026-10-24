@@ -1,7 +1,8 @@
 name: Jev live check
 
-# Calls the real TypeSafe Jev API to confirm the request contract still works and
-# that the classification example's sample requests get the expected verdicts.
+# Weekly (and on-demand) drift check against the real TypeSafe Jev API, so a
+# change on Jev's side shows up even when nobody pushes. CI runs the same live
+# tests on every push and pull request.
 # Needs a TYPESAFE_API_KEY repository secret; without it the job is skipped.
 on:
   workflow_dispatch:
@@ -11,12 +12,6 @@ on:
         default: jev-latest
   schedule:
     - cron: '17 9 * * 1' # Mondays 09:17 UTC
-  push:
-    branches: [main]
-    paths:
-      - src/gate.js
-      - src/jev.js
-      - public/examples.js
 
 permissions:
   contents: read

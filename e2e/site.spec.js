@@ -13,7 +13,7 @@ test('classification example: create, get denied, read log, delete', async ({ pa
 
   await expect(page.locator('#created code')).not.toBeEmpty();
   await expect(page.locator('#door-name')).toHaveText(/NIGHTJAR/);
-  await expect(page.locator('#door-rules')).toContainText('program office');
+  await expect(page.locator('#door-rules')).toContainText('Lantern Archive');
   await expect(page.locator('#samples .chip')).toHaveCount(5);
 
   await page.locator('.chip', { hasText: 'Prompt injection' }).click();
@@ -250,4 +250,16 @@ test('admin console: only the database flag unlocks it, and it controls other ac
   // The admin can't act on itself from the UI.
   await page.locator('#accounts tbody tr', { hasText: '@root' }).click();
   await expect(page.getByRole('button', { name: 'Delete account and locks' })).toBeDisabled();
+});
+
+test('radar survives a zero-size canvas without script errors', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await page.evaluate(() => { document.getElementById('radar').style.width = '0px'; });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { document.getElementById('radar').style.width = ''; });
+  await page.waitForTimeout(400);
+  expect(errors).toEqual([]);
 });

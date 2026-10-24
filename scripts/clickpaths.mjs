@@ -164,7 +164,7 @@ await shot('While Jev decides, a terminal-style sequence runs (payload withheld 
 await page.waitForSelector('#result:not(.hidden)');
 await scrollTo('#door', 80);
 await shot('ACCESS DENIED: gauges show each check against its threshold; manipulation 0.95 fails.', { settle: 1700 });
-await clickStep(page.locator('.chip', { hasText: 'Partner liaison' }), 'Try another scenario: "Partner liaison".');
+await clickStep(page.locator('.chip', { hasText: 'Visiting scholar' }), 'Try another scenario: "Visiting scholar".');
 await page.getByRole('button', { name: 'Request entry' }).click();
 await page.waitForSelector('#result.denied');
 await scrollTo('#envelope', 120);
