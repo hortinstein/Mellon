@@ -6,7 +6,7 @@
 
 *Speak, friend, and enter.*
 
-**`SENSITIVE // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA`**
+**`AMBER VAULT // DEMONSTRATION ENVIRONMENT // FICTIONAL DATA`**
 
 </div>
 
@@ -168,7 +168,7 @@ Every capability below ships today.
 | **Situational Awareness Suite** | A live radar of provisioned locks, platform-wide counters, a scroll-linked vigilance meter, and an engagement envelope chart of each session's attempts. All animation is disabled for users who prefer reduced motion. |
 | **DDIL Mode** | With no API key, Mellon falls back to an offline keyword judge that denies nearly everything. Unmatched security. Limited utility. |
 | **Zero-Dependency Runtime** | No runtime npm packages and no supply chain to attack. Playwright is used for testing only, and we try not to think about it. |
-| **Classification Workflow Demonstrator** | A built-in fictional `SENSITIVE // PROGRAM NIGHTJAR` document with five sample requests, from a cleared program analyst to an outright injection attempt. The program, clearance levels and markings are invented. |
+| **Classification Workflow Demonstrator** | A built-in fictional `AMBER VAULT // NIGHTJAR` document with five sample requests, from an Inner Ring keeper to an outright injection attempt. It uses an invented classification scheme (the Lantern Archive's seal rings and commissions), not real government markings. |
 | **Mellon Identity** | Accounts are Mellons too. You register plain-English identity rules instead of a password, and every sign-in is adjudicated by Jev under stricter thresholds. Locks you create while signed in are linked to your account. |
 | **Command Authority Console** | `/admin` shows every account's usage (locks, attempts, sign-ins, API calls, sessions, last seen) and can disable accounts, revoke sessions, read any lock's log, and delete accounts or locks. The admin flag lives only in the database and is set from the server's command line, never through the API. |
 | **Deploy Anywhere** | A small Docker image that runs unprivileged, a docker-compose file, Fly.io scripts and config, and a Vercel deployment backed by Upstash Redis, with CI that smoke-tests the image. |
@@ -222,10 +222,10 @@ npm start                          # http://localhost:3000
 
 There are no runtime dependencies. It needs Node 22 or newer.
 
-Click **Load classification example** to create the fictional Operation NIGHTJAR document, marked `SENSITIVE // PROGRAM NIGHTJAR // PROGRAM OFFICE ONLY`.
-Then try the sample requests: a cleared program analyst, a partner-organization liaison (excluded by the rules),
-someone with only a Level 2 clearance, a journalist with no need-to-know, and a prompt injection.
-The program, clearance levels and markings are invented and are not real government markings.
+Click **Load classification example** to create the fictional Operation NIGHTJAR document, marked `AMBER VAULT // NIGHTJAR // KEEPERS ONLY`.
+It uses an invented classification scheme. Keepers of the Lantern Archive hold seals of the Outer, Second, Third, Fourth or Inner Ring, and documents are opened for Archive commissions.
+Try the sample requests: an Inner Ring keeper on the commission, a visiting scholar from another archive (excluded by the rules),
+a keeper with only a Second Ring seal, a chronicler with no commission, and a prompt injection.
 
 ### How a decision is made
 
@@ -392,7 +392,7 @@ On Vercel, the rate limits (attempts and sign-ins per minute) are kept in each f
 ### Honest caveats
 
 - **Mellon is not encryption.** The only real cryptography here is the AES-256-GCM used to encrypt secrets at rest. Anyone who can read the server's data file and key can read every secret. The model's verdict is a policy decision, not a cryptographic barrier.
-- Jev judges **claims**, not identity. "I hold a Level 4 program clearance" is not verified.
+- Jev judges **claims**, not identity. "I hold an Inner Ring seal" is not verified.
   Treat Mellon as a policy screen that sits in front of real authentication, not in place of it.
 - Decisions are probabilistic. Test your thresholds on realistic requests for your own ruleset.
 - The mock judge (used when there is no API key) only matches keywords. It exists so the UI runs offline.

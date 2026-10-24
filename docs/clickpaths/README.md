@@ -99,7 +99,7 @@ Make a case to a lock, watch it be adjudicated, and read the verdict.
 
 ![Request entry step 4](03-request-entry/04.png)
 
-**5.** Try another scenario: "Partner liaison".
+**5.** Try another scenario: "Visiting scholar".
 
 ![Request entry step 5](03-request-entry/05.png)
 

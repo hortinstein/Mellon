@@ -107,6 +107,8 @@ export function createRadar(canvas) {
     if (!reducedMotion()) sweep += dt * 0.0011;
     const c = size / 2;
     const R = c - 6;
+    // Not laid out yet (hidden, or still loading): try again next frame.
+    if (R <= 0) { requestAnimationFrame(draw); return; }
     ctx.clearRect(0, 0, size, size);
 
     // Rings, crosshair, bearing ticks
