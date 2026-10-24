@@ -3,7 +3,10 @@ name: Deploy to Vercel
 # Deploys main after CI passes, or on demand. Needs repository secrets
 # VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID for a project already set up
 # with scripts/vercel-deploy.sh (Redis and MELLON_SECRET_KEY configured).
-# Without them the job is skipped.
+# Without them the job is skipped. After deploying it checks the live site is
+# on Upstash Redis (scripts/check-deploy.sh). Set the MELLON_URL repository
+# variable to your production domain; otherwise the deployment's own URL is
+# checked, which Vercel's deployment protection may block.
 on:
   workflow_run:
     workflows: [CI]
@@ -51,5 +54,11 @@ jobs:
         if: steps.cfg.outputs.ready == 'true'
         run: npx --yes vercel@64 build --prod --token "$VERCEL_TOKEN"
       - name: Deploy
+        id: deploy
         if: steps.cfg.outputs.ready == 'true'
-        run: npx --yes vercel@64 deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+        run: |
+          URL=$(npx --yes vercel@64 deploy --prebuilt --prod --token "$VERCEL_TOKEN")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+      - name: Check the live site is on Upstash Redis
+        if: steps.cfg.outputs.ready == 'true'
+        run: scripts/check-deploy.sh "${{ vars.MELLON_URL || steps.deploy.outputs.url }}" redis

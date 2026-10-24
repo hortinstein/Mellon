@@ -3,7 +3,7 @@
 // tested without real accounts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -119,4 +119,61 @@ test('fly-deploy: first run creates app, volume and key; re-run only deploys', (
   assert.equal(again.status, 0, again.stderr);
   assert.ok(!/apps create|volumes create|secrets import/.test(again.calls), again.calls);
   assert.match(again.calls, /ARGS deploy --app mellon-test/);
+});
+
+// scripts/check-deploy.sh against a stand-in deployment.
+async function fakeDeployment(status, code = 200) {
+  const { createServer } = await import('node:http');
+  const server = createServer((req, res) => {
+    if (code !== 200) { res.writeHead(code); return res.end(); }
+    if (req.url === '/api/status') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(status)); }
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(req.url === '/api' ? '<title>Mellon API</title>' : '<title>Mellon</title>');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  return { server, url: `http://127.0.0.1:${server.address().port}/` };
+}
+const checkDeploy = (url, expect) => new Promise((resolve) => {
+  const child = spawn('bash', [join(ROOT, 'scripts', 'check-deploy.sh'), url, expect], { env: { ...process.env, CHECK_DELAY: '0' } });
+  let out = '';
+  child.stdout.on('data', (d) => (out += d));
+  child.stderr.on('data', (d) => (out += d));
+  child.on('close', (status) => resolve({ status, out }));
+});
+
+test('check-deploy: passes a healthy Redis deployment and warns about the stand-in judge', async () => {
+  const d = await fakeDeployment({ storage: 'redis', persistent: true, encrypted: true, mode: 'mock', model: 'mock' });
+  const r = await checkDeploy(d.url, 'redis');
+  d.server.close();
+  assert.equal(r.status, 0, r.out);
+  assert.match(r.out, /storage=redis, persistent, encrypted/);
+  assert.match(r.out, /::warning::.*stand-in judge/);
+});
+
+test('check-deploy: fails on the wrong storage, lost persistence, no encryption or an error', async () => {
+  const cases = [
+    [{ storage: 'file', persistent: true, encrypted: true }, 'redis', /storage is 'file', expected 'redis'/],
+    [{ storage: 'file', persistent: false, encrypted: true }, 'file', /not persistent/],
+    [{ storage: 'redis', persistent: true, encrypted: false }, 'redis', /not encrypted/],
+  ];
+  for (const [status, expect, message] of cases) {
+    const d = await fakeDeployment(status);
+    const r = await checkDeploy(d.url, expect);
+    d.server.close();
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, message);
+  }
+  const broken = await fakeDeployment(null, 500);
+  const r = await checkDeploy(broken.url, 'redis');
+  broken.server.close();
+  assert.equal(r.status, 1);
+  assert.match(r.out, /returned 500/);
+});
+
+test('check-deploy: a protected URL says to set MELLON_URL instead of retrying', async () => {
+  const d = await fakeDeployment(null, 401);
+  const r = await checkDeploy(d.url, 'redis');
+  d.server.close();
+  assert.equal(r.status, 1);
+  assert.match(r.out, /deployment protection; set the MELLON_URL/);
 });

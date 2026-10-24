@@ -173,7 +173,7 @@ Every capability below ships today.
 | **Command Authority Console** | `/admin` shows every account's usage (locks, attempts, sign-ins, API calls, sessions, last seen) and can disable accounts, revoke sessions, read any lock's log, and delete accounts or locks. The admin flag lives only in the database and is set from the server's command line, never through the API. |
 | **Deploy Anywhere** | A small Docker image that runs unprivileged, a docker-compose file, Fly.io scripts and config, and a Vercel deployment backed by Upstash Redis, with CI that smoke-tests the image. |
 | **Developer API** | A documented JSON API at `/api.html`, with a quickstart in curl, JavaScript and Python, integration recipes and a live Try-it console. |
-| **Continuous Assurance Pipeline** | 73 unit and API tests, 10 browser tests (including a reduced-motion check), a Docker smoke test, and a weekly live check against the real model in GitHub Actions. |
+| **Continuous Assurance Pipeline** | 76 unit and API tests, 10 browser tests (including a reduced-motion check), Redis integration tests against a real Redis and against Upstash itself, a Docker smoke test on a volume and on Redis, live checks against the real model, and a post-deploy check of the live site. |
 
 ## Roadmap
 
@@ -343,7 +343,7 @@ docker build -t mellon .
 docker run -d -p 3000:8080 -v mellon-data:/data -e MELLON_SECRET_KEY=... -e TYPESAFE_API_KEY=... mellon
 ```
 
-The image is `node:22-alpine` with no extra packages. It starts as root only long enough to give the mounted volume to the `node` user, then drops privileges. It also has a health check and shuts down cleanly on `SIGTERM`. `scripts/docker-smoke.sh` builds the image and checks all of that end to end. CI runs it on every push.
+The image is `node:22-alpine` with no extra packages. It starts as root only long enough to give the mounted volume to the `node` user, then drops privileges. It also has a health check and shuts down cleanly on `SIGTERM`. `scripts/docker-smoke.sh` builds the image and checks all of that end to end. With `SMOKE_REDIS_URL`/`SMOKE_REDIS_TOKEN` it also runs the image on Redis with no volume, the way a disk-less host such as Cloud Run would, and checks that data survives replacing the container. CI runs both on every push.
 
 **Fly.io**
 
@@ -355,7 +355,7 @@ scripts/fly-admin.sh my-mellon grant <username>
 
 `fly-deploy.sh` is safe to re-run. On the first run it creates the app, a 1 GB `mellon_data` volume and a random `MELLON_SECRET_KEY`. It prints the key once, so save it. Then it deploys a single machine using `fly.toml`. The machine stops when idle and starts on the next request. Because storage is a single file, keep it at **one machine**.
 
-To deploy automatically from GitHub, set a `FLY_API_TOKEN` secret (`fly tokens create deploy`) and a `FLY_APP` variable. `.github/workflows/fly-deploy.yml` then deploys `main` whenever CI passes, or when you run it manually.
+To deploy automatically from GitHub, set a `FLY_API_TOKEN` secret (`fly tokens create deploy`) and a `FLY_APP` variable. `.github/workflows/fly-deploy.yml` then deploys `main` whenever CI passes, or when you run it manually. Afterwards it runs `scripts/check-deploy.sh` against `https://<FLY_APP>.fly.dev` (or the `MELLON_FLY_URL` variable) to confirm the site answers and its storage is persistent and encrypted.
 
 **Vercel**
 
@@ -376,7 +376,7 @@ It then generates `MELLON_SECRET_KEY` as a sensitive variable on the first run (
 
 `vercel-admin.sh` pulls the project's Redis credentials into a temporary file and runs the admin CLI against Redis from your machine. That's the Vercel equivalent of `fly ssh`.
 
-To deploy automatically from GitHub, add `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` secrets (the IDs are in `.vercel/project.json` after the first deploy). `.github/workflows/vercel-deploy.yml` then builds and deploys `main` whenever CI passes.
+To deploy automatically from GitHub, add `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` secrets (the IDs are in `.vercel/project.json` after the first deploy). `.github/workflows/vercel-deploy.yml` then builds and deploys `main` whenever CI passes. Afterwards it runs `scripts/check-deploy.sh`, which fails the workflow unless the live site reports Redis storage that it can actually reach. Set the `MELLON_URL` repository variable to your production domain; otherwise it checks the deployment's own URL, which Vercel's deployment protection may block.
 
 On Vercel, the rate limits (attempts and sign-ins per minute) are kept in each function instance's memory, so they are per instance rather than global.
 
@@ -405,11 +405,15 @@ On Vercel, the rate limits (attempts and sign-ins per minute) are kept in each f
 | `npm test`         | Unit and HTTP API tests (`test/`). Uses a fake judge, so needs no network.    |
 | `npm run test:e2e` | Browser tests (`e2e/`) with Playwright against a real server and the mock judge. Run `npm ci` and `npx playwright install chromium` first. |
 | `npm run test:live`| Sends the classification example's sample requests to the real Jev API (`live/`). Skipped unless `TYPESAFE_API_KEY` is set. |
+| `npm run test:redis`| Redis storage against a real Upstash REST endpoint (`integration/`): the reply formats `src/redis.js` relies on, error handling, two function instances sharing state, concurrent attempt logging, encryption at rest, and the admin CLI and `vercel-admin.sh` writing to Redis. Skipped unless `MELLON_TEST_REDIS_URL`/`MELLON_TEST_REDIS_TOKEN` are set. Everything goes under a unique key prefix that is deleted afterwards (and expires within the hour regardless), so it is safe to point at a database a deployment uses. |
 | `npm run check`    | Syntax check of every source file.                                            |
 
 GitHub Actions has two workflows:
 
-- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request. It runs the syntax check and the unit tests on Node 22 and 24, the browser tests, the Docker smoke test and the **live Jev tests**. The live tests make real calls to the Jev API: the request contract, the sample verdicts, a grant and a denied injection through the HTTP API, and a Mellon sign-in. They need the `TYPESAFE_API_KEY` repository secret, and CI **fails** if it's missing. Pull requests from forks, which never receive secrets, skip that job. Both deploy workflows wait for CI to pass, so nothing deploys without passing real Jev checks.
+- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request. It runs the syntax check and the unit tests on Node 22 and 24, the browser tests, the Docker smoke test, the Redis tests and the **live Jev tests**.
+  - **Redis integration** runs `npm run test:redis` against a real Redis behind Upstash's open-source REST adapter (`serverless-redis-http`), started as service containers. The Docker job uses the same services to run the image on Redis.
+  - **Live Upstash** runs the same suite, and the Docker image, against your real Upstash database. It needs the `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` repository secrets (the REST URL and token from the Upstash console), and CI **fails** if they're missing. A separate free database for CI is tidiest, but the deployment's own database works too because the tests never touch the `mellon` prefix.
+  - **Live Jev API** makes real calls to the Jev API: the request contract, the sample verdicts, a grant and a denied injection through the HTTP API, and a Mellon sign-in. They need the `TYPESAFE_API_KEY` repository secret, and CI **fails** if it's missing. Pull requests from forks, which never receive secrets, skip this job and Live Upstash. Both deploy workflows wait for CI to pass, so nothing deploys without passing the real Jev and Upstash checks.
 - **Jev live check** (`.github/workflows/jev-live.yml`) runs the live tests every Monday and on demand (you can pick the model), so a change on Jev's side is caught even when nobody pushes.
 
 ### Configuration
