@@ -178,7 +178,7 @@ Every capability below ships today.
 | **Deploy Anywhere** | A small Docker image that runs unprivileged, a docker-compose file, Fly.io scripts and config, and a Vercel deployment backed by Upstash Redis, with CI that smoke-tests the image. |
 | **Attribute-Based File Access** | `/lab` is a field report from the fictional Corvid Ridge Autonomy Lab, which uses Mellon to decide whether humans and autonomous agents may open files, up to and including the launch codes. Code checks clearance tier, security groups and principal type; Jev judges the stated purpose. A live demo lets anyone edit the principal without signing up. |
 | **Developer API** | A documented JSON API at `/api.html`, with a quickstart in curl, JavaScript and Python, integration recipes and a live Try-it console. |
-| **Continuous Assurance Pipeline** | 85 unit and API tests, 13 browser tests (including a reduced-motion check), Redis integration tests against a real Redis and against Upstash itself, a Docker smoke test on a volume and on Redis, live checks against the real model, and a post-deploy check of the live site. |
+| **Continuous Assurance Pipeline** | 92 unit and API tests, 13 browser tests (including a reduced-motion check), Redis integration tests against a real Redis and against Upstash itself, a Docker smoke test on a volume and on Redis, live checks against the real model, and a post-deploy check of the live site. |
 
 ## Roadmap
 
@@ -290,6 +290,8 @@ Each file has hard requirements (minimum clearance tier, required security group
 2. **Purpose, by Jev.** The verified attributes and the stated purpose are judged against the file's rules with the usual three questions and thresholds, so "find a way to delay interlock B" is denied even for a Range Safety agent with the right tier, and injections land on the manipulation check.
 
 The file is released by code only when both pass, and its contents are never sent to Jev. The page's live demo lets visitors edit the principal (name, human or agent, tier, groups, supervisor, purpose) with no account; `POST /api/demo/clearance` evaluates every file and stores nothing. The page also walks through building the same service on the public API: one lock per file, attributes from your identity provider, and the purpose check as an attempt. The example principals live in `public/lab-presets.js`, and the live test suite checks their key outcomes against the real Jev API.
+
+**Windows file server.** [`examples/windows-file-gate`](examples/windows-file-gate/README.md) builds the same gate for files on Windows. It reads the user's groups from Windows (`whoami /groups`, an S4U `WindowsIdentity` for domain users with nested groups, or `Get-LocalGroupMember`), checks clearance-tier and required, alternative and excluded groups in code, asks Mellon about the purpose, and on a grant adds a time-limited read ACE with `icacls` that a scheduled `sweep` removes. The field report page walks through it, and `test/windows-gate.test.js` runs the whole flow against a real Mellon server with Windows faked.
 
 ### Attempt logs (why it passed)
 

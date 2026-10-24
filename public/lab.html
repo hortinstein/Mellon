@@ -71,6 +71,7 @@
         <li><a href="#demo">Live demo</a></li>
         <li><a href="#how">How it decides</a></li>
         <li><a href="#build">Build it yourself</a></li>
+        <li><a href="#windows">Windows walkthrough</a></li>
         <li><a href="#endpoint">Demo endpoint</a></li>
         <li><a href="#notes">Field notes</a></li>
       </ol>
@@ -238,6 +239,85 @@ export async function openFile(user, fileId, purpose) {
         <h3>4. Serve the file, and keep the receipts</h3>
         <p>Release the file only from your server, after both stages pass. Mellon logs every attempt on the lock with the reason it passed or failed; add your own log line for attribute denials, which never reach Mellon.</p>
         <div class="callout"><strong>Attributes are facts, not claims.</strong> Read the tier and groups from your identity provider or a signed token. If the requester can type their own clearance, as in this demo, the attribute stage proves nothing.</div>
+      </section>
+
+      <section id="windows" data-reveal>
+        <h2>Windows walkthrough</h2>
+        <p>The same two stages on a Windows file server. Windows says who the user is and which groups they're in, code checks the groups, Mellon judges the purpose, and Windows enforces the answer with a time-limited read permission on the file. The full example, with tests, is in <a href="https://github.com/hortinstein/Mellon/tree/main/examples/windows-file-gate"><code>examples/windows-file-gate</code></a>.</p>
+
+        <h3>1. Only the gate can open the protected files</h3>
+<pre><code>icacls D:\Protected /inheritance:r ^
+  /grant:r "CORVID\svc-mellon-gate:(OI)(CI)F" "BUILTIN\Administrators:(OI)(CI)F"</code></pre>
+        <p class="small">Users get no permissions on these files except the per-user read entry the gate adds, so removing it later can't take away anything else.</p>
+
+        <h3>2. Requirements by Windows group</h3>
+<pre><code>// policy.json: clearance is a group too; SIDs work wherever names do
+"tierGroups": { "CORVID\\Clearance-Tier3": 3, "CORVID\\Clearance-Tier4": 4 },
+"files": {
+  "D:\\Protected\\launch\\authorization-codes.txt": {
+    "minTier": 4,
+    "allGroups": ["CORVID\\Flight-Operations", "CORVID\\Ethics-Board"],
+    "denyGroups": ["CORVID\\Autonomous-Agents"],
+    "rules": "The purpose must be a scheduled, approved test event, and the request must name the second human who countersigns it.",
+    "grantMinutes": 5
+  }
+}</code></pre>
+
+        <h3>3. Ask Windows for the user's groups</h3>
+<pre><code>// windows.js: the domain controller's view, nested groups included.
+// The user name is passed only as an environment variable, never inside the script.
+const DOMAIN_SCRIPT = `
+$id = [System.Security.Principal.WindowsIdentity]::new($env:MELLON_GATE_USER)
+$groups = foreach ($g in $id.Groups) {
+  $name = try { $g.Translate([System.Security.Principal.NTAccount]).Value } catch { $null }
+  [pscustomobject]@{ name = $name; sid = $g.Value }
+}
+[pscustomobject]@{ account = $id.Name; sid = $id.User.Value; groups = @($groups) } | ConvertTo-Json -Depth 3 -Compress`;
+
+export async function domainUserGroups(upn, run = defaultRunner) {
+  const out = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', DOMAIN_SCRIPT],
+    { MELLON_GATE_USER: assertAccount(upn) });
+  return normalize(JSON.parse(out));
+}
+
+// Or this process's own token: whoami /groups /fo csv /nh, minus deny-only groups.</code></pre>
+
+        <h3>4. Groups in code, then the purpose by Mellon</h3>
+<pre><code>// gate.js
+const attrs = attributes(identity, policy);          // highest Clearance-TierN group → tier
+const reasons = checkGroups(attrs, file);            // minTier, allGroups, anyGroups, denyGroups
+if (reasons.length) return { granted: false, stage: 'groups', reasons };   // Mellon never asked
+
+let verdict;
+try {
+  verdict = await mellon.attempt(file.lockId, statement(attrs, file, purpose));
+} catch (e) {
+  return { granted: false, stage: 'purpose', reasons: [`Mellon unavailable: ${e.message}`] };
+}
+if (verdict.granted !== true) return { granted: false, stage: 'purpose', reasons: [verdict.reason] };
+return { granted: true, minutes: file.grantMinutes ?? policy.grantMinutes ?? 15 };</code></pre>
+
+        <h3>5. Windows enforces it, for a while</h3>
+<pre><code>// cli.js open: record the grant first, so a crash can't leave the door open
+grants.add({ path: file.path, account: identity.account, expiresAt: now() + minutes * 60_000 });
+await run('icacls.exe', [file.path, '/grant', `${assertAccount(identity.account)}:(R)`]);
+
+// cli.js sweep, every minute from Task Scheduler as the gate's service account
+await run('icacls.exe', [grant.path, '/remove:g', assertAccount(grant.account)]);</code></pre>
+<pre><code>&gt; node cli.js open --user aokafor@corvid.example ^
+    --file D:\Protected\range\interlock-procedures.pdf ^
+    --purpose "Quarterly safety inspection of the range interlocks"
+GRANTED  CORVID\aokafor  D:\Protected\range\interlock-procedures.pdf
+  tier 3; 14 groups from Windows
+  pass  decision     grant (p=0.94 grant)
+  pass  manipulation 0.02 ≤ 0.3
+  read access for CORVID\aokafor until 2026-10-24T12:30:00.000Z
+
+&gt; node cli.js open --user svc-magpie@corvid.example --file D:\Protected\launch\authorization-codes.txt --purpose "urgent drill"
+DENIED  CORVID\svc-magpie  D:\Protected\launch\authorization-codes.txt
+  tier 4; 9 groups from Windows
+  groups: member of excluded group CORVID\Autonomous-Agents</code></pre>
+        <div class="callout"><strong>Take the identity from Windows, not from the request.</strong> In production the gate runs as its own service account behind something that has already authenticated the caller (IIS with Windows Authentication, a signed token), and passes that name with <code>--user</code>. Revoking a permission doesn't close a handle that is already open, so keep the minutes short for sensitive files.</div>
       </section>
 
       <section id="endpoint" data-reveal>

@@ -228,3 +228,6 @@ test-results/
 # Vercel CLI link + pulled env
 .vercel/
 .env.vercel
+
+# Windows file gate example: grants issued at runtime
+examples/windows-file-gate/grants.json
